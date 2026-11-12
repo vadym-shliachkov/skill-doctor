@@ -1,0 +1,18 @@
+{
+  "unit": "demo/alpha",
+  "nodes": [
+    { "id": "start", "kind": "start", "label": "Start", "role": "The user runs alpha.", "origin": "inferred",
+      "source": { "file": "skills/alpha/SKILL.md", "lines": [6, 6], "quote": "# Alpha" } },
+    { "id": "chk", "kind": "subprocess", "label": "Check each file", "role": "Checks every file in parallel.", "target": "demo:checker", "calls": "agent", "parallel": true, "origin": "inferred",
+      "source": { "file": "skills/alpha/SKILL.md", "lines": [8, 8], "quote": "subagent_type: demo:checker per file" } },
+    { "id": "beta", "kind": "subprocess", "label": "Write the report", "role": "Hands over to beta.", "target": "/demo:beta", "calls": "skill", "origin": "inferred",
+      "source": { "file": "skills/alpha/SKILL.md", "lines": [9, 9], "quote": "Then invoke /demo:beta" } },
+    { "id": "end", "kind": "end", "label": "End", "role": "Alpha is done.", "origin": "inferred",
+      "source": { "file": "skills/alpha/SKILL.md", "lines": [9, 9], "quote": "to write the report" } }
+  ],
+  "edges": [
+    { "from": "start", "to": "chk", "kind": "flow", "source": { "file": "skills/alpha/SKILL.md", "lines": [8, 8], "quote": "Dispatch one subagent" } },
+    { "from": "chk", "to": "beta", "kind": "flow", "source": { "file": "skills/alpha/SKILL.md", "lines": [9, 9], "quote": "Then invoke /demo:beta" } },
+    { "from": "beta", "to": "end", "kind": "flow", "source": { "file": "skills/alpha/SKILL.md", "lines": [9, 9], "quote": "to write the report" } }
+  ]
+}

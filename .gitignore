@@ -1,0 +1,5 @@
+.schem-it/
+.skill-qa/
+*-workspace/
+node_modules/
+.playwright-mcp/

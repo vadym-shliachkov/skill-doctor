@@ -1,0 +1,24 @@
+{
+  "unit": "two/finish",
+  "nodes": [
+    { "id": "start", "kind": "start", "label": "Start", "role": "Finish starts.", "origin": "inferred",
+      "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [6, 6], "quote": "# Finish" } },
+    { "id": "s1", "kind": "process", "label": "Read brief", "role": "Reads the brief.", "origin": "inferred",
+      "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [8, 8], "quote": "Read brief.md." } },
+    { "id": "brief", "kind": "storage", "label": "brief.md", "role": "The brief.", "path": "./brief.md", "holds": "The brief from start.", "origin": "inferred",
+      "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [8, 8], "quote": "Read brief.md." } },
+    { "id": "s2", "kind": "process", "label": "Write final", "role": "Writes the result.", "origin": "inferred",
+      "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [9, 9], "quote": "Write final.md." } },
+    { "id": "final", "kind": "io", "direction": "out", "label": "final.md", "role": "The result.", "origin": "inferred",
+      "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [9, 9], "quote": "Write final.md." } },
+    { "id": "end", "kind": "end", "label": "End", "role": "Done.", "origin": "inferred",
+      "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [9, 9], "quote": "Write final.md." } }
+  ],
+  "edges": [
+    { "from": "start", "to": "s1", "kind": "flow", "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [8, 8], "quote": "Read brief.md." } },
+    { "from": "brief", "to": "s1", "kind": "reads", "label": "the brief", "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [8, 8], "quote": "Read brief.md." } },
+    { "from": "s1", "to": "s2", "kind": "flow", "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [9, 9], "quote": "Write final.md." } },
+    { "from": "s2", "to": "final", "kind": "flow", "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [9, 9], "quote": "Write final.md." } },
+    { "from": "final", "to": "end", "kind": "flow", "source": { "file": "plugins/two/skills/finish/SKILL.md", "lines": [9, 9], "quote": "Write final.md." } }
+  ]
+}

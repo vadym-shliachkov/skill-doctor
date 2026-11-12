@@ -1,0 +1,12 @@
+{
+  "name": "skill-doctor",
+  "description": "Tools for people who build Claude and Codex skills: map how a skill works and QA it before you ship it.",
+  "owner": { "name": "Vadym Shliachkov" },
+  "plugins": [
+    {
+      "name": "skill-doctor",
+      "source": "./plugins/skill-doctor",
+      "description": "/skill-doctor:schem-it draws every skill, command and agent of a skill, plugin or marketplace as a flowchart; /skill-doctor:skill-qa tests a skill against realistic and edge-case scenarios and writes an evaluation report."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "skill-doctor",
+  "version": "0.1.0",
+  "description": "Tools for skill authors. schem-it analyses a skill, plugin or marketplace and draws each skill, command and agent as an algorithm flowchart, each block linked to its source lines. skill-qa QAs a skill: it works out who uses it, plans and runs main-purpose and edge-case scenarios, judges the text and design of what it produces and writes an evaluation report; with --fix a separate fixer agent fixes what matters and it re-tests.",
+  "skills": "./skills/"
+}

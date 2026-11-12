@@ -1,0 +1,42 @@
+{
+  "$comment": "One unit's overview chart as written by the schem-it overview analyst. Each block covers blocks of the unit's detailed chart (their local ids); merge prefixes the ids.",
+  "type": "object",
+  "required": ["unit", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "unit": { "type": "string", "minLength": 1 },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label", "role", "covers"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "kind": { "enum": ["start", "end", "io", "process", "decision", "subprocess", "storage"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "role": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "covers": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "direction": { "enum": ["in", "out"] },
+          "user": { "type": "boolean" },
+          "holds": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["flow", "reads", "writes"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+        }
+      }
+    }
+  }
+}

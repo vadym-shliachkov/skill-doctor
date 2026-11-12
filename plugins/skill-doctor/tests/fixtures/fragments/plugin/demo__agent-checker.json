@@ -1,0 +1,15 @@
+{
+  "unit": "demo/agent-checker",
+  "nodes": [
+    { "id": "start", "kind": "start", "label": "Spawned by alpha", "role": "Alpha starts one checker per file.", "origin": "inferred",
+      "source": { "file": "agents/checker.md", "lines": [7, 7], "quote": "You check one file." } },
+    { "id": "p1", "kind": "process", "label": "Check the file", "role": "Checks one file.", "origin": "inferred",
+      "source": { "file": "agents/checker.md", "lines": [7, 7], "quote": "check one file" } },
+    { "id": "end", "kind": "end", "label": "End", "role": "Returns to alpha.", "origin": "inferred",
+      "source": { "file": "agents/checker.md", "lines": [7, 7], "quote": "You check one file." } }
+  ],
+  "edges": [
+    { "from": "start", "to": "p1", "kind": "flow", "source": { "file": "agents/checker.md", "lines": [7, 7], "quote": "You check one file." } },
+    { "from": "p1", "to": "end", "kind": "flow", "source": { "file": "agents/checker.md", "lines": [7, 7], "quote": "You check one file." } }
+  ]
+}

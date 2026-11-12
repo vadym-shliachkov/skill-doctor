@@ -1,0 +1,110 @@
+{
+  "$comment": "One unit's flowchart as written by the schem-it analyst (model version 3). Node and edge ids are local to the unit; merge prefixes them.",
+  "type": "object",
+  "required": ["unit", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "unit": { "type": "string", "minLength": 1 },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label", "role", "origin", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "kind": { "enum": ["start", "end", "io", "process", "decision", "subprocess", "storage"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "role": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "direction": { "enum": ["in", "out"] },
+          "command": { "type": "string", "minLength": 1 },
+          "user": { "type": "boolean" },
+          "loads": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "target": { "type": "string", "minLength": 1 },
+          "targets": { "type": "array", "minItems": 1, "items": { "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "object", "required": ["target"], "additionalProperties": false, "properties": {
+              "target": { "type": "string", "minLength": 1 },
+              "role": { "type": "string", "minLength": 1, "maxLength": 120 } } }
+          ] } },
+          "calls": { "enum": ["agent", "skill", "command", "function"] },
+          "parallel": { "type": "boolean" },
+          "count": { "type": "integer", "minimum": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "holds": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "table": { "type": "object", "required": ["lines"], "additionalProperties": false, "properties": {
+            "file": { "type": "string", "minLength": 1 },
+            "lines": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 1 } } } },
+          "list": { "type": "object", "required": ["lines"], "additionalProperties": false, "properties": {
+            "file": { "type": "string", "minLength": 1 },
+            "lines": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 1 } } } },
+          "schema": { "type": "string", "minLength": 1 },
+          "fields": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "type": "object", "required": ["name", "holds"], "additionalProperties": false, "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "holds": { "type": "string", "minLength": 1, "maxLength": 160 } } } },
+          "origin": { "enum": ["static", "inferred"] },
+          "fact": { "type": "string", "pattern": "^f[0-9]+$" },
+          "source": {
+            "type": "object",
+            "required": ["file", "lines", "quote"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string", "minLength": 1 },
+              "lines": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 1 } },
+              "quote": { "type": "string", "minLength": 3 }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "kind", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["flow", "reads", "writes"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "source": {
+            "type": "object",
+            "required": ["file", "lines", "quote"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string", "minLength": 1 },
+              "lines": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 1 } },
+              "quote": { "type": "string", "minLength": 3 }
+            }
+          }
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["kind", "text", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["missing-branch", "ambiguous", "contradiction", "undefined", "unbounded-loop"] },
+          "text": { "type": "string", "minLength": 10, "maxLength": 240 },
+          "at": { "type": "string", "minLength": 1 },
+          "source": {
+            "type": "object",
+            "required": ["file", "lines", "quote"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string", "minLength": 1 },
+              "lines": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 1 } },
+              "quote": { "type": "string", "minLength": 3 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

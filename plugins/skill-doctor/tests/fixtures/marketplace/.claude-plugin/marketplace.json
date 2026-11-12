@@ -1,0 +1,8 @@
+{
+  "name": "shop",
+  "plugins": [
+    { "name": "one", "source": "./plugins/one", "description": "First plugin" },
+    { "name": "two", "source": "./plugins/two", "description": "Second plugin" },
+    { "name": "remote", "source": { "source": "github", "repo": "x/y" } }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "unit": "one/start",
+  "nodes": [
+    { "id": "start", "kind": "start", "label": "Start", "role": "The pipeline starts.", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [6, 6], "quote": "# Start" } },
+    { "id": "s1", "kind": "process", "label": "Write brief", "role": "Writes the brief.", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [8, 8], "quote": "Write brief.md." } },
+    { "id": "brief", "kind": "storage", "label": "brief.md", "role": "The brief.", "path": "brief.md", "holds": "The brief for the finish step.", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [8, 8], "quote": "Write brief.md." } },
+    { "id": "call", "kind": "subprocess", "label": "two:finish", "role": "Finishes the job.", "target": "two:finish", "calls": "skill", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "Invoke two:finish" } },
+    { "id": "ghost", "kind": "subprocess", "label": "two:ghost", "role": "Does not exist.", "target": "/two:ghost", "calls": "skill", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "Invoke two:finish" } },
+    { "id": "ext", "kind": "subprocess", "label": "elsewhere:thing", "role": "Outside.", "target": "elsewhere:thing", "calls": "skill", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "Invoke two:finish" } },
+    { "id": "end", "kind": "end", "label": "End", "role": "Done.", "origin": "inferred",
+      "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "to finish the job" } }
+  ],
+  "edges": [
+    { "from": "start", "to": "s1", "kind": "flow", "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [8, 8], "quote": "Write brief.md." } },
+    { "from": "s1", "to": "brief", "kind": "writes", "label": "the brief", "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [8, 8], "quote": "Write brief.md." } },
+    { "from": "s1", "to": "call", "kind": "flow", "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "Invoke two:finish" } },
+    { "from": "call", "to": "ghost", "kind": "flow", "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "Invoke two:finish" } },
+    { "from": "ghost", "to": "ext", "kind": "flow", "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "Invoke two:finish" } },
+    { "from": "ext", "to": "end", "kind": "flow", "source": { "file": "plugins/one/skills/start/SKILL.md", "lines": [9, 9], "quote": "to finish the job" } }
+  ]
+}

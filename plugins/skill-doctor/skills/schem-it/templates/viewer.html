@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!--TITLE--></title>
+<style>
+/* Design tokens. Block colours: Start/End, Step, Decision and File follow the flowchart style guide;
+   Input/output, Waits for the user and Sub-process follow the "Rounded Product UI" palette. */
+:root {
+  --canvas: #fbfaf7; --surface: #ffffff; --panel: #f7f5f0; --line: #e7e3d9; --shadow: rgba(15, 34, 71, 0.10);
+  --text: #0f2247; --muted: #5b6782; --navy: #1e3a6e; --accent: #2f6fd6; --missing: #d64545; --data: #3aa0e6;
+  --pill: #edeff3; --pill-text: #3b4865;
+  --start-fill: #e3f5ea; --start-stroke: #3e9e6b;
+  --process-fill: #eaf2fd; --process-stroke: #4c8bdb;
+  --decision-fill: #fff5d9; --decision-stroke: #ddae3e;
+  --storage-fill: #fff2da; --storage-stroke: #d19c46;
+  --io-fill: #e3f6fa; --io-stroke: #4d8597;
+  --user-fill: #fde7e8; --user-stroke: #c27378;
+  --subprocess-fill: #f0e7fc; --subprocess-stroke: #8c6bc2;
+  /* Problem severities: a filled mark on the block, the same colour on its row. */
+  --sev-error: #d64545; --sev-warning: #c98a12; --sev-info: #6b7a99; --sev-text: #ffffff;
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #15181f; --surface: #1d212b; --panel: #1a1e27; --line: #2e3442; --shadow: rgba(0, 0, 0, 0.35);
+    --text: #e6ebf5; --muted: #9aa5bd; --navy: #9db6e6; --accent: #7aa7ff; --missing: #ff8a80; --data: #5cb8f2;
+    --pill: #2a3040; --pill-text: #c9d2e6;
+    --start-fill: #183526; --start-stroke: #5cc28c;
+    --process-fill: #172a45; --process-stroke: #6ea6f0;
+    --decision-fill: #3a2f12; --decision-stroke: #e6bd55;
+    --storage-fill: #36290f; --storage-stroke: #dcae5c;
+    --io-fill: #12333b; --io-stroke: #6cb2c4;
+    --user-fill: #3d1f22; --user-stroke: #e0959a;
+    --subprocess-fill: #2a1f40; --subprocess-stroke: #ad8fe0;
+    --sev-error: #ff8a80; --sev-warning: #f0b44c; --sev-info: #9aa5bd; --sev-text: #15181f;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text); font: 13px/1.45 var(--font); }
+body { display: grid; grid-template-rows: auto 1fr; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+#crumbs { font-weight: 600; }
+#crumbs a { color: var(--accent); cursor: pointer; text-decoration: none; }
+#crumbs .sep { color: var(--muted); margin: 0 6px; font-weight: 400; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-left: auto; }
+.controls input[type=search], button { padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+/* Overview | Detailed: one switch, the chosen side filled. */
+.seg { display: inline-flex; }
+.seg[hidden] { display: none; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 8px 0 0 8px; }
+.seg button:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.seg button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+#stage { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+#view { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+#banner { display: none; position: absolute; top: 10px; left: 10px; right: 10px; padding: 8px 12px; border-radius: 8px; background: var(--user-fill); border: 1px solid var(--user-stroke); z-index: 2; }
+#banner.focus { display: flex; gap: 12px; align-items: center; background: var(--process-fill); border-color: var(--accent); }
+#banner.focus button { margin-left: auto; }
+#index { position: absolute; inset: 0; overflow: auto; padding: 8px 20px 20px; display: none; }
+#index h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 10px; color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.card { display: block; width: 100%; text-align: left; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; box-shadow: 0 1px 3px var(--shadow); }
+button.card:hover, button.card:focus-visible { border-color: var(--accent); }
+.card.plain { opacity: 0.75; box-shadow: none; }
+.card .kind { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.card p { margin: 6px 0 0; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card.hide { display: none; }
+svg#canvas { width: 100%; height: 100%; display: block; cursor: grab; background: var(--canvas); }
+
+/* The legend is its own strip under the chart, not part of the block details. */
+#legend { flex: none; border-top: 1px solid var(--line); background: var(--surface); padding: 8px 16px 10px; box-shadow: 0 -2px 6px var(--shadow); }
+#legend .head { display: flex; align-items: center; gap: 10px; }
+#legend h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+#legend .head button { padding: 2px 8px; font-size: 12px; }
+#legend .items { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; }
+#legend.closed .items { display: none; }
+#legend .item { display: flex; align-items: center; gap: 8px; color: var(--text); }
+#legend .item svg { flex: none; overflow: visible; }
+#legend .note { color: var(--muted); }
+
+aside { border-left: 1px solid var(--line); background: var(--panel); padding: 14px 18px; overflow: auto; }
+aside h2 { font-size: 15px; margin: 0 0 4px; }
+aside .kind { color: var(--muted); margin-bottom: 8px; }
+aside dl { margin: 0; }
+aside dt { color: var(--muted); margin-top: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+aside dd { margin: 2px 0 0; word-break: break-word; }
+aside code, aside .cmd { font-family: var(--mono); font-size: 12px; }
+aside blockquote { margin: 4px 0 0; padding: 4px 8px; border-left: 3px solid var(--line); color: var(--muted); }
+aside ul { margin: 4px 0 0; padding-left: 18px; }
+aside a { color: var(--accent); cursor: pointer; }
+
+/* A table or list from the text, over the canvas. */
+#overlay { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; background: var(--canvas); }
+#overlay[hidden] { display: none; }
+#overlay .bar { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+#overlay .bar code { color: var(--muted); font: 12px var(--mono); }
+#overlay .bar button { margin-left: auto; }
+#ov-body { overflow: auto; padding: 12px 16px 24px; }
+#ov-body table { border-collapse: collapse; width: 100%; }
+#ov-body th, #ov-body td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+#ov-body th { position: sticky; top: 0; background: var(--canvas); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+#ov-body li { margin: 4px 0; }
+aside ul.fields { list-style: none; padding-left: 0; }
+
+/* Chart: blocks, connectors and labels. */
+.node { cursor: pointer; }
+.node:focus { outline: none; }
+.node:focus-visible .shape { stroke: var(--accent); stroke-width: 2.6; }
+body.panning { user-select: none; -webkit-user-select: none; }
+.node .shape { stroke-width: 1.4; stroke-linejoin: round; }
+.node .bar { stroke-width: 1.4; }
+.node .icon { fill: none; stroke: var(--navy); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.node text { fill: var(--text); font: 600 13px var(--font); pointer-events: none; }
+.node text.sub { fill: var(--muted); font: 400 11px var(--mono); }
+.node text.chev { fill: var(--muted); font-weight: 700; }
+.k-start .shape, .k-end .shape { fill: var(--start-fill); stroke: var(--start-stroke); }
+.k-process .shape { fill: var(--process-fill); stroke: var(--process-stroke); }
+.k-user .shape { fill: var(--user-fill); stroke: var(--user-stroke); }
+.k-decision .shape { fill: var(--decision-fill); stroke: var(--decision-stroke); }
+.k-storage .shape { fill: var(--storage-fill); stroke: var(--storage-stroke); }
+.k-io .shape { fill: var(--io-fill); stroke: var(--io-stroke); }
+.k-subprocess .shape { fill: var(--subprocess-fill); stroke: var(--subprocess-stroke); }
+.k-subprocess .bar { stroke: var(--subprocess-stroke); }
+.node .row rect { fill: transparent; stroke: var(--subprocess-stroke); stroke-opacity: 0.35; }
+.node .row:hover rect { fill: var(--pill); }
+.node .row text { font: 400 12px var(--font); }
+.node .row.more text { fill: var(--muted); }
+.node text.detail { fill: var(--accent); cursor: pointer; pointer-events: auto; }
+.node.missing .shape, .node.missing .bar { stroke: var(--missing); stroke-width: 2; }
+.node.selected .shape, .node.covered .shape { stroke: var(--accent); stroke-width: 2.6; }
+.node.dim, .edge.dim { opacity: 0.2; }
+.edge path { fill: none; stroke: var(--navy); stroke-width: 1.5; stroke-linejoin: round; }
+.edge.reads path, .edge.writes path { stroke: var(--data); stroke-width: 1.3; stroke-dasharray: 5 4; }
+.edge .pill rect { fill: var(--pill); }
+.edge .pill text { fill: var(--pill-text); font: 600 11px var(--font); }
+.edge text.data { fill: var(--muted); font: 400 11px var(--font); paint-order: stroke; stroke: var(--canvas); stroke-width: 3px; }
+marker path { fill: var(--navy); }
+#arrow-data path { fill: var(--data); }
+#arrow-call path { fill: var(--subprocess-stroke); }
+
+/* Whole-system map: unit cards, frames (a plugin, or a unit's whole flowchart) and the calls between units. */
+.unit .shape { fill: var(--surface); stroke: var(--line); }
+.unit .accent { stroke: none; }
+.unit.u-start .accent { fill: var(--start-stroke); }
+.unit.u-process .accent { fill: var(--process-stroke); }
+.unit.u-subprocess .accent { fill: var(--subprocess-stroke); }
+.unit.u-user .accent { fill: var(--user-stroke); }
+.unit.u-io .accent { fill: var(--io-stroke); }
+.unit text.sub { font: 400 11px var(--font); }
+.unit.empty { opacity: 0.6; }
+.frame .box { stroke: var(--line); stroke-width: 1.4; }
+.frame.plugin .box { fill: var(--panel); stroke-dasharray: 6 4; }
+.frame.unit .box { fill: var(--surface); stroke: var(--subprocess-stroke); stroke-opacity: 0.6; }
+.frame.unit .head { cursor: pointer; }
+.frame .head line { stroke: var(--line); }
+.frame text.title { fill: var(--text); font: 600 14px var(--font); }
+.frame text.title tspan { fill: var(--muted); font-weight: 400; font-size: 12px; }
+.frame.unit .head:hover text.title { fill: var(--accent); }
+.edge.call path { stroke: var(--subprocess-stroke); stroke-width: 1.8; }
+/* With every chart open the map is zoomed far out: calls and frames keep their width. */
+svg.expanded .edge.call path, svg.expanded .frame .box { vector-effect: non-scaling-stroke; }
+
+/* Problems: a numbered mark on a block or unit, a pill on a card, rows on the Problems page and in the panel. */
+.pmark { pointer-events: none; }
+.pmark circle { stroke: var(--surface); stroke-width: 2; }
+.pmark text { fill: var(--sev-text); font: 700 10px var(--font); }
+.pmark.s-error circle { fill: var(--sev-error); }
+.pmark.s-warning circle { fill: var(--sev-warning); }
+.pmark.s-info circle { fill: var(--sev-info); }
+.sev { display: inline-block; padding: 0 7px; border-radius: 9px; font-size: 11px; font-weight: 600; line-height: 18px; color: var(--sev-text); background: var(--sev-info); white-space: nowrap; }
+.sev.s-error { background: var(--sev-error); }
+.sev.s-warning { background: var(--sev-warning); }
+.card .sev { margin-top: 6px; }
+#to-problems .sev { margin-left: 6px; }
+#index .lead { color: var(--muted); max-width: 70ch; margin: 12px 0 0; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.filters button[aria-pressed=false] { opacity: 0.5; }
+.prows { display: grid; gap: 8px; }
+.prow { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; width: 100%; text-align: left; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; }
+.prow:hover, .prow:focus-visible { border-color: var(--accent); }
+.prow > .sev { align-self: start; justify-self: start; }
+.prow .where { grid-column: 2; color: var(--muted); font-size: 12px; }
+.prow .where code { font-family: var(--mono); }
+.prow.hide, .pgroup.hide { display: none; }
+aside ul.problems { list-style: none; padding-left: 0; }
+aside ul.problems li { margin: 6px 0 10px; }
+aside ul.problems .sev { margin-right: 6px; }
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 1fr 40%; }
+  aside { border-left: 0; border-top: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<header>
+  <nav id="crumbs"></nav>
+  <div class="controls">
+    <button id="back" type="button" hidden>Back</button>
+    <span id="layers" class="seg" role="group" aria-label="Chart level" hidden><button id="l-overview" type="button" aria-pressed="true">Overview</button><button id="l-detail" type="button" aria-pressed="false">Detailed</button></span>
+    <button id="to-map" type="button" hidden>Whole system</button>
+    <button id="to-problems" type="button" hidden>Problems</button>
+    <label id="l-expand" hidden><input type="checkbox" id="t-expand"> Expand charts</label>
+    <label><input type="checkbox" id="t-files" checked> Files</label>
+    <input type="search" id="search" placeholder="Search" aria-label="Search">
+    <button id="fit" type="button">Fit</button>
+  </div>
+</header>
+<main>
+  <div id="stage">
+    <div id="view">
+      <div id="banner"></div>
+      <div id="index"></div>
+      <div id="overlay" hidden><div class="bar"><strong id="ov-title"></strong><code id="ov-src"></code><button id="ov-close" type="button" aria-label="Close">×</button></div><div id="ov-body"></div></div>
+      <svg id="canvas" role="img" aria-label="Flowchart">
+        <defs>
+          <filter id="shadow" x="-10%" y="-10%" width="120%" height="140%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#0f2247" flood-opacity="0.12"/>
+          </filter>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="arrow-call" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="arrow-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <g id="viewport"></g>
+      </svg>
+    </div>
+    <section id="legend" aria-label="Legend">
+      <div class="head"><h3>Legend</h3><button id="legend-toggle" type="button" aria-expanded="true">Hide</button></div>
+      <div class="items"></div>
+    </section>
+  </div>
+  <aside id="panel" aria-live="polite"></aside>
+</main>
+<script>/*ELK*/</script>
+<script>/*LAYOUT*/</script>
+<script>
+/*DATA*/
+(() => {
+  const { model, views } = DATA;
+  const { TOKENS, MAP: MAP_SIZES, compute, computeMap, labelOf } = SchemLayout;
+  const elk = new ELK();
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const KIND_NAMES = {
+    marketplace: 'Marketplace', plugin: 'Plugin', skill: 'Skill', command: 'Command', 'agent-def': 'Agent', 'agent-prompt': 'Agent prompt', 'script-command': 'Script', hook: 'Hook',
+    start: 'Start', end: 'End', io: 'Input / output', process: 'Step', decision: 'Decision', subprocess: 'Sub-process', storage: 'File',
+  };
+  // Small line icons drawn inside blocks (16 × 16, stroked in the text colour).
+  const ICONS = {
+    cube: 'M8 1.5 14 4.8v6.4L8 14.5 2 11.2V4.8Z M2 4.8 8 8l6-3.2 M8 8v6.5',
+    io: 'M2.5 8h8 M7.5 4.5 11 8l-3.5 3.5 M13.5 2.5v11',
+    doc: 'M4 1.5h5.5l3 3v10H4Z M9.5 1.5v3h3 M6 8h4.5 M6 10.5h4.5',
+    terminal: 'M2 3.5a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5Z M5 6.5l2 1.75-2 1.75 M8.5 11h3',
+    user: 'M8 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M3 14c.8-3 2.8-4.5 5-4.5s4.2 1.5 5 4.5',
+    decision: 'M3.5 13V9 M8 13V3 M12.5 13V6.5',
+    bot: 'M4 5.5h8a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 12 13.5H4A1.5 1.5 0 0 1 2.5 12V7A1.5 1.5 0 0 1 4 5.5Z M8 5.5V3 M6.5 2.5h3 M6 9v1 M10 9v1',
+    file: 'M3 3.5C3 2.7 5.2 2 8 2s5 .7 5 1.5S10.8 5 8 5 3 4.3 3 3.5Z M3 3.5v9C3 13.3 5.2 14 8 14s5-.7 5-1.5v-9 M3 8c0 .8 2.2 1.5 5 1.5S13 8.8 13 8',
+  };
+  const byId = new Map(model.nodes.map((n) => [n.id, n]));
+  // Problems: what schem-it found broken or unclear, by block and by unit; a page of their own lists them all.
+  const PROBLEMS = model.problems ?? [];
+  const SEVERITIES = ['error', 'warning', 'info'];
+  const SEV_NAMES = { error: 'error', warning: 'warning', info: 'note' };
+  const probsByNode = new Map();
+  const probsByUnit = new Map();
+  for (const p of PROBLEMS) {
+    if (p.node) { if (!probsByNode.has(p.node)) probsByNode.set(p.node, []); probsByNode.get(p.node).push(p); }
+    if (!probsByUnit.has(p.unit)) probsByUnit.set(p.unit, []);
+    probsByUnit.get(p.unit).push(p);
+  }
+  const PROBLEMS_ID = '@problems';
+  if (PROBLEMS.length) views.push({ id: PROBLEMS_ID, kind: 'problems', title: 'Problems', parent: model.rootId, nodes: [], edges: [] });
+  const viewById = new Map(views.map((v) => [v.id, v]));
+  const MAP = views.find((v) => v.kind === 'map');
+  // layer: the level charts open at (a chart without an overview shows Detailed); focus: the overview block whose
+  // detailed blocks are highlighted.
+  const state = { view: null, trail: [], selected: null, showFiles: true, expand: false, search: '', tx: { x: 0, y: 0, k: 1 }, layout: null, userMoved: false, whole: false, layer: 'overview', focus: null };
+  const HAS_OVERVIEWS = views.some((v) => v.overview);
+  // Each detailed block → the overview block that stands for it.
+  const coverOf = new Map(model.nodes.filter((n) => n.layer === 'overview').flatMap((n) => n.covers.map((c) => [c, n.id])));
+  // The chart as drawn: its overview when that level is chosen and it has one.
+  const shownOf = (view) => (view && state.layer === 'overview' && view.overview ? { ...view, nodes: view.overview.nodes, edges: view.overview.edges, layer: 'overview' } : view);
+  const svg = document.getElementById('canvas');
+  const vp = document.getElementById('viewport');
+  const panel = document.getElementById('panel');
+  const indexBox = document.getElementById('index');
+  const backBtn = document.getElementById('back');
+  const legendBox = document.getElementById('legend');
+  const overlay = document.getElementById('overlay');
+  let suppressClick = false;
+  let drawToken = 0;
+  // Each chart is laid out once per Files setting: the layout tries several candidates, so Back and toggling are instant.
+  const layouts = new Map();
+  const layoutOf = (view) => {
+    const key = `${view.id}|${view.layer ?? 'detail'}|${state.showFiles}`;
+    if (!layouts.has(key)) layouts.set(key, compute(view, byId, elk, { showFiles: state.showFiles }));
+    return layouts.get(key);
+  };
+  // The map, as cards or with every flowchart open; the open charts reuse the layouts above.
+  const mapLayoutOf = (view) => {
+    const key = `${view.id}|${state.expand}|${state.layer}|${state.showFiles}`;
+    if (!layouts.has(key)) {
+      const chartOf = (id) => { const v = shownOf(viewById.get(id)); return v?.nodes.length ? layoutOf(v) : null; };
+      // In an open overview a call leaves the overview block that stands for the calling block.
+      const shown = state.layer === 'overview' ? { ...view, calls: view.calls.map((c) => ({ ...c, via: (viewById.get(c.from)?.overview && coverOf.get(c.via)) || c.via })) } : view;
+      layouts.set(key, computeMap(shown, byId, elk, { expand: state.expand, showFiles: state.showFiles, chartOf, metaOf: (id) => kindLine(byId.get(id)) }));
+    }
+    return layouts.get(key);
+  };
+
+  const el = (tag, attrs = {}, parent) => {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const h = (tag, props = {}, ...kids) => {
+    const e = document.createElement(tag);
+    Object.assign(e, props);
+    for (const k of kids) if (k != null) e.append(k);
+    return e;
+  };
+  const link = (text, onclick) => h('a', { textContent: text, onclick, href: 'javascript:void 0' });
+  const opensOf = (n) => (n.opens ?? []).filter((id) => viewById.has(id));
+  // Where a click on the block body goes: a group's runner, a step's script chart, or the one chart a sub-process opens.
+  const drillOf = (n) => {
+    if (n.kind === 'process') return opensOf(n)[0] ?? null;
+    if (n.kind !== 'subprocess') return null;
+    if (n.runner && viewById.has(n.runner)) return n.runner;
+    const opens = opensOf(n);
+    return opens.length === 1 && !n.branches?.length ? opens[0] : null;
+  };
+  const hashId = () => {
+    try { return decodeURIComponent(location.hash.slice(1)); } catch { return ''; }
+  };
+  // What an index card or map card says under its name: the kind and whether it has a flowchart.
+  const statusOf = (n) => {
+    const target = viewById.get(n.id);
+    return n.analysis === 'failed' ? 'analysis failed' : n.analysis === 'skipped' ? 'not analysed'
+      : !target ? (n.wrapper ? 'short command, not analysed' : 'no flowchart') : target.kind === 'index' ? '' : `${target.nodes.length} blocks${target.overview ? ' · overview' : ''}${n.sweep ? ' · not run by anything' : ''}`;
+  };
+  const kindLine = (n) => { const st = statusOf(n); return `${KIND_NAMES[n.kind] ?? n.kind}${st ? ` · ${st}` : ''}`; };
+  const count = (k, word) => `${k} ${word}${k === 1 ? '' : 's'}`;
+  const worstOf = (list) => SEVERITIES.find((s) => list.some((p) => p.severity === s));
+  // A block's problems; an overview step carries those of the detailed blocks it stands for.
+  const problemsOf = (n) => (n.layer === 'overview' ? n.covers.flatMap((c) => probsByNode.get(c) ?? []) : probsByNode.get(n.of ?? n.id) ?? []);
+  const sevCount = (s, k) => (s === 'info' ? `${k} info` : count(k, s));
+  const sevSummary = (list) => SEVERITIES.map((s) => [s, list.filter((p) => p.severity === s).length]).filter(([, k]) => k).map(([s, k]) => sevCount(s, k)).join(', ');
+  const sevPill = (list, text) => h('span', { className: `sev s-${worstOf(list)}`, textContent: text ?? count(list.length, 'problem') });
+  // A numbered mark at a block's corner, outside the layout: it never moves a block or a line.
+  function drawMark(g, list, x, y) {
+    if (!list.length) return;
+    const m = el('g', { class: `pmark s-${worstOf(list)}`, transform: `translate(${x},${y})` }, g);
+    el('circle', { r: 9 }, m);
+    el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 0.5 }, m).textContent = list.length > 9 ? '9+' : String(list.length);
+  }
+  const markAt = (n, w, ht) => (n.kind === 'decision' ? [w * 0.75 + 3, ht * 0.25 - 3] : n.kind === 'start' || n.kind === 'end' ? [w - 8, 5] : [w - 4, 4]);
+  const problemWords = (list) => (list.length ? `, ${count(list.length, 'problem')}` : '');
+  // Calls as the map panel lists them: one per caller and callee, however many steps make it.
+  const callPairs = (calls) => new Set(calls.map((c) => `${c.from}>${c.to}`)).size;
+  const look = (n) => (n.kind === 'process' && n.user ? 'user' : n.kind);
+  const iconOf = (n) => (n.kind === 'start' || n.kind === 'end' ? 'cube' : n.kind === 'io' ? 'io' : n.kind === 'decision' ? 'decision'
+    : n.kind === 'subprocess' ? (n.calls === 'agent' ? 'bot' : n.calls === 'command' ? 'terminal' : 'cube') : n.kind === 'storage' ? 'file' : n.user ? 'user' : n.command ? 'terminal' : 'doc');
+
+  // One drawing routine per block kind; sizes and paddings come from TOKENS, so every chart draws a kind the same way.
+  function drawShape(kind, w, ht, g) {
+    const T = TOKENS;
+    switch (kind) {
+      case 'start':
+      case 'end': return el('rect', { class: 'shape', width: w, height: ht, rx: ht / 2 }, g);
+      case 'io': { const s = T.slant; return el('path', { class: 'shape', d: `M${s},0 H${w} L${w - s},${ht} H0 Z` }, g); }
+      case 'decision': return el('path', { class: 'shape', d: `M${w / 2},0 L${w},${ht / 2} L${w / 2},${ht} L0,${ht / 2} Z` }, g);
+      case 'storage': {
+        const ry = T.cylRy;
+        el('path', { class: 'shape', d: `M0,${ry} A${w / 2},${ry} 0 0 1 ${w},${ry} V${ht - ry} A${w / 2},${ry} 0 0 1 0,${ht - ry} Z` }, g);
+        return el('path', { class: 'shape', d: `M0,${ry} A${w / 2},${ry} 0 0 0 ${w},${ry}`, fill: 'none' }, g);
+      }
+      case 'subprocess': {
+        const r = el('rect', { class: 'shape', width: w, height: ht, rx: T.radius }, g);
+        el('line', { class: 'bar', x1: T.bar, y1: 0, x2: T.bar, y2: ht }, g);
+        el('line', { class: 'bar', x1: w - T.bar, y1: 0, x2: w - T.bar, y2: ht }, g);
+        return r;
+      }
+      default: return el('rect', { class: 'shape', width: w, height: ht, rx: T.radius }, g);
+    }
+  }
+
+  // Tab reaches every block in drawing order; Enter or Space does what a click does.
+  function keyboard(g, label, action) {
+    g.setAttribute('tabindex', '0');
+    g.setAttribute('role', 'button');
+    g.setAttribute('aria-label', label);
+    g.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      action();
+    });
+  }
+
+  function drawBlock(b, parent) {
+    const T = TOKENS;
+    const n = b.node;
+    const realId = n.of ?? n.id;
+    const drill = Boolean(drillOf(n));
+    const classes = ['node', `k-${look(n)}`, n.missing && 'missing', state.selected === realId && 'selected'].filter(Boolean).join(' ');
+    const g = el('g', { class: classes, transform: `translate(${b.x},${b.y})`, 'data-id': realId }, parent);
+    el('title', {}, g).textContent = `${KIND_NAMES[n.kind] ?? n.kind}: ${labelOf(n)}`;
+    const body = el('g', { filter: 'url(#shadow)' }, g);
+    drawShape(n.kind, b.w, b.h, body);
+    // Content: icon, then the label (medium-bold) and an optional monospace second line, left aligned
+    // after a fixed inset per kind; inside a diamond the group is centred.
+    const iconW = T.icon + T.iconGap;
+    const free = b.h - (n.kind === 'storage' ? T.cylRy : 0) - (b.rowsH ?? 0);
+    const top = (n.kind === 'storage' ? T.cylRy : 0) + (b.rows?.length ? T.padY : (free - b.textH) / 2);
+    let x0 = T.padX + (n.kind === 'io' ? T.slant / 2 + 2 : 0) + (n.kind === 'subprocess' ? T.bar : 0);
+    if (n.kind === 'decision') {
+      const textW = Math.max(...b.main.map((l) => l.length * T.label.char));
+      x0 = (b.w - iconW - textW) / 2;
+    }
+    const iy = top + (b.textH > 2 * T.label.line ? T.label.line / 2 : b.textH / 2) - T.icon / 2;
+    el('path', { class: 'icon', d: ICONS[iconOf(n)], transform: `translate(${x0},${iy})` }, g);
+    let y = top + T.label.line / 2;
+    for (const ln of b.main) { el('text', { x: x0 + iconW, y, 'dominant-baseline': 'central' }, g).textContent = ln; y += T.label.line; }
+    if (b.sub.length) y += T.sub.gap - (T.label.line - T.sub.line) / 2;
+    b.sub.forEach((ln, i) => {
+      const t = el('text', { class: i === b.detail && (n.table || n.list) ? 'sub detail' : 'sub', x: x0 + iconW, y, 'dominant-baseline': 'central' }, g);
+      t.textContent = ln;
+      if (i === b.detail && (n.table || n.list)) t.addEventListener('click', (ev) => { ev.stopPropagation(); if (!suppressClick) openDetail(n); });
+      y += T.sub.line;
+    });
+    let ry = top + b.textH + T.row.gap;
+    for (const r of b.rows ?? []) {
+      const rg = el('g', { class: r.more ? 'row more' : 'row' }, g);
+      const rx = T.padX + T.bar;
+      el('rect', { x: rx, y: ry, width: b.w - 2 * rx, height: T.row.line - 4, rx: 6 }, rg);
+      el('text', { x: rx + 8, y: ry + (T.row.line - 4) / 2, 'dominant-baseline': 'central' }, rg).textContent = r.open ? `${r.text}  ›` : r.text;
+      rg.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (suppressClick) return;
+        if (r.open && viewById.has(r.open)) go(r.open, { call: true });
+        else select(realId);
+      });
+      ry += T.row.line;
+    }
+    if (drill) el('text', { class: 'chev', x: b.w - T.bar - 8, y: b.rows?.length ? top + T.label.line / 2 : b.h / 2, 'text-anchor': 'end', 'dominant-baseline': 'central' }, g).textContent = '›';
+    const probs = problemsOf(n);
+    drawMark(g, probs, ...markAt(n, b.w, b.h));
+    if (probs.length) g.querySelector('title').textContent += ` (${sevSummary(probs)})`;
+    g.addEventListener('click', (ev) => { ev.stopPropagation(); onNodeClick(n); });
+    keyboard(g, `${KIND_NAMES[n.kind] ?? n.kind}: ${labelOf(n)}${problemWords(probs)}`, () => onNodeClick(n));
+    return g;
+  }
+
+  // A unit on the map: a card with a colour mark for its kind; a click opens its flowchart.
+  const UNIT_LOOK = { skill: 'process', command: 'start', 'agent-def': 'subprocess', 'agent-prompt': 'user', 'script-command': 'io' };
+  const UNIT_ICON = { skill: 'cube', command: 'terminal', 'agent-def': 'bot', 'agent-prompt': 'doc', 'script-command': 'terminal' };
+  function drawUnit(b, parent) {
+    const T = TOKENS;
+    const n = b.node;
+    const empty = !viewById.get(n.id)?.nodes.length;
+    const classes = ['node', 'unit', `u-${UNIT_LOOK[n.kind] ?? 'process'}`, empty && 'empty', state.selected === n.id && 'selected'].filter(Boolean).join(' ');
+    const g = el('g', { class: classes, transform: `translate(${b.x},${b.y})`, 'data-id': n.id }, parent);
+    el('title', {}, g).textContent = `${KIND_NAMES[n.kind] ?? n.kind}: ${n.label}`;
+    const body = el('g', { filter: 'url(#shadow)' }, g);
+    drawUnitShape(b.w, b.h, body);
+    const x0 = T.padX + MAP_SIZES.accent + 4;
+    const top = (b.h - b.textH) / 2;
+    el('path', { class: 'icon', d: ICONS[UNIT_ICON[n.kind] ?? 'doc'], transform: `translate(${x0},${top + T.label.line / 2 - T.icon / 2})` }, g);
+    let y = top + T.label.line / 2;
+    for (const ln of b.main) { el('text', { x: x0 + T.icon + T.iconGap, y, 'dominant-baseline': 'central' }, g).textContent = ln; y += T.label.line; }
+    if (b.sub.length) y += T.sub.gap - (T.label.line - T.sub.line) / 2;
+    for (const ln of b.sub) { el('text', { class: 'sub', x: x0 + T.icon + T.iconGap, y, 'dominant-baseline': 'central' }, g).textContent = ln; y += T.sub.line; }
+    if (!empty) el('text', { class: 'chev', x: b.w - 10, y: b.h / 2, 'text-anchor': 'end', 'dominant-baseline': 'central' }, g).textContent = '›';
+    const probs = probsByUnit.get(n.id) ?? [];
+    drawMark(g, probs, b.w - 4, 4);
+    if (probs.length) g.querySelector('title').textContent += ` (${sevSummary(probs)})`;
+    g.addEventListener('click', (ev) => { ev.stopPropagation(); if (!suppressClick) go(n.id, { call: true }); });
+    keyboard(g, `${KIND_NAMES[n.kind] ?? n.kind}: ${n.label}${problemWords(probs)}`, () => go(n.id, { call: true }));
+    return g;
+  }
+  function drawUnitShape(w, ht, g) {
+    el('rect', { class: 'shape', width: w, height: ht, rx: TOKENS.radius }, g);
+    el('rect', { class: 'accent', x: 6, y: 8, width: MAP_SIZES.accent - 1, height: Math.max(4, ht - 16), rx: 2 }, g);
+  }
+
+  // A frame: a plugin around its units, or (charts expanded) a unit around its flowchart, its title opening the chart.
+  function drawFrame(f, parent) {
+    const g = el('g', { class: `frame ${f.kind}`, transform: `translate(${f.x},${f.y})` }, parent);
+    el('rect', { class: 'box', width: f.w, height: f.h, rx: 14 }, g);
+    const head = el('g', { class: 'head' }, g);
+    const hh = MAP_SIZES.head;
+    if (f.kind === 'unit') {
+      el('rect', { width: f.w, height: hh, fill: 'transparent' }, head);
+      el('line', { x1: 0, y1: hh, x2: f.w, y2: hh }, head);
+    }
+    const t = el('text', { class: 'title', x: 16, y: hh / 2 + 2, 'dominant-baseline': 'central' }, head);
+    t.textContent = f.kind === 'unit' ? `${f.title}  ›` : f.title;
+    const n = byId.get(f.id);
+    if (n) { const k = el('tspan', { dx: 10 }, t); k.textContent = `${kindLine(n)}${f.kind === 'unit' && probsByUnit.has(f.id) ? ` · ${count(probsByUnit.get(f.id).length, 'problem')}` : ''}`; }
+    if (f.kind === 'unit') head.addEventListener('click', (ev) => { ev.stopPropagation(); if (!suppressClick) go(f.id, { call: true }); });
+    return g;
+  }
+
+  // Orthogonal path with softly rounded corners.
+  function pathOf(pts) {
+    let d = `M${pts[0].x},${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p = pts[i];
+      const a = pts[i - 1];
+      const c = pts[i + 1];
+      const r = Math.min(6, Math.hypot(p.x - a.x, p.y - a.y) / 2, Math.hypot(c.x - p.x, c.y - p.y) / 2);
+      const ux = Math.sign(p.x - a.x);
+      const uy = Math.sign(p.y - a.y);
+      const vx = Math.sign(c.x - p.x);
+      const vy = Math.sign(c.y - p.y);
+      d += ` L${p.x - ux * r},${p.y - uy * r} Q${p.x},${p.y} ${p.x + vx * r},${p.y + vy * r}`;
+    }
+    const last = pts[pts.length - 1];
+    return `${d} L${last.x},${last.y}`;
+  }
+
+  function drawEdge(e, parent) {
+    const marker = e.kind === 'flow' ? 'arrow' : e.kind === 'call' ? 'arrow-call' : 'arrow-data';
+    const g = el('g', { class: `edge ${e.kind}` }, parent);
+    el('path', { d: pathOf(e.points), 'marker-end': `url(#${marker})` }, g);
+    const lb = e.label;
+    if (!lb) return;
+    if (lb.pill) {
+      const pg = el('g', { class: 'pill' }, g);
+      el('rect', { x: lb.x, y: lb.y, width: lb.w, height: lb.h, rx: lb.h / 2 }, pg);
+      el('text', { x: lb.x + lb.w / 2, y: lb.y + lb.h / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central' }, pg).textContent = lb.text;
+      return;
+    }
+    lb.lines.forEach((ln, i) => {
+      el('text', { class: 'data', x: lb.x + 2, y: lb.y + TOKENS.dataLabel.line * (i + 0.5), 'dominant-baseline': 'central' }, g).textContent = ln;
+    });
+  }
+
+  function applyTx() {
+    vp.setAttribute('transform', `translate(${state.tx.x},${state.tx.y}) scale(${state.tx.k})`);
+  }
+
+  function fit() {
+    const L = state.layout;
+    if (!L) return;
+    const r = svg.getBoundingClientRect();
+    const w = L.width || 1;
+    const ht = L.height || 1;
+    // A big flowchart opens no smaller than a readable scale: a tall one shows from the top, a wide one from Start.
+    // The Fit button (state.whole) and the map show everything; the map with every chart open shrinks furthest.
+    const map = viewById.get(state.view)?.kind === 'map';
+    const floor = map ? (state.expand ? 0.03 : 0.3) : state.whole ? 0.05 : 0.8;
+    const k = Math.min(1.1, Math.max((r.width - 40) / w, floor), Math.max((r.height - 40) / ht, floor));
+    const start = map ? null : L.blocks.find((b) => b.kind === 'start');
+    const x = w * k > r.width - 40 ? (start ? r.width / 2 - (start.x + start.w / 2) * k : map ? 20 : (r.width - w * k) / 2) : (r.width - w * k) / 2;
+    state.tx = { k, x, y: Math.max(20, (r.height - ht * k) / 2) };
+    applyTx();
+  }
+
+  function centreOn(id) {
+    const b = state.layout?.blocks.find((x) => (x.of ?? x.id) === id);
+    if (!b) return;
+    const r = svg.getBoundingClientRect();
+    state.tx.x = r.width / 2 - (b.x + b.w / 2) * state.tx.k;
+    state.tx.y = r.height / 2 - (b.y + b.h / 2) * state.tx.k;
+    state.userMoved = true;
+    applyTx();
+  }
+
+  function renderCrumbs(view) {
+    const nav = document.getElementById('crumbs');
+    nav.replaceChildren();
+    const items = [];
+    const root = state.trail.length ? viewById.get(state.trail[0]) : view;
+    for (let v = root; v; v = viewById.get(v.parent)) items.unshift({ v, depth: null });
+    state.trail.slice(1).forEach((id, i) => items.push({ v: viewById.get(id), depth: i + 1 }));
+    if (state.trail.length) items.push({ v: view, depth: state.trail.length });
+    items.forEach(({ v, depth }, i) => {
+      if (i) nav.append(h('span', { className: 'sep', textContent: '›' }));
+      if (i === items.length - 1) { nav.append(h('strong', { textContent: v.title })); return; }
+      nav.append(link(v.title, () => {
+        if (depth == null) { go(v.id); return; }
+        state.trail = state.trail.slice(0, depth);
+        go(v.id, { back: true });
+      }));
+    });
+  }
+
+  function renderBanner(view) {
+    const b = document.getElementById('banner');
+    const n = byId.get(view.id);
+    const focus = state.focus && byId.get(state.focus);
+    b.classList.toggle('focus', Boolean(focus));
+    b.replaceChildren();
+    b.style.display = '';
+    if (focus) {
+      b.append(h('span', { textContent: `Highlighted: the ${count(focus.covers.length, 'detailed block')} behind the overview step “${focus.label}”.` }),
+        h('button', { type: 'button', textContent: 'Back to overview', onclick: () => toOverview(focus.id) }));
+      return;
+    }
+    const text = view.kind === 'index' || !n ? ''
+      : n.analysis === 'failed' ? 'Analysis failed: this flowchart shows only what the script found, in the order the text mentions it.'
+        : n.analysis === 'skipped' ? 'Not analysed in this run (excluded by --only).' : '';
+    b.textContent = text;
+    b.style.display = text ? 'block' : 'none';
+  }
+
+  function renderLegend(kind, layer) {
+    const items = legendBox.querySelector('.items');
+    items.replaceChildren();
+    const swatch = (kind, extra = {}) => {
+      const sw = el('svg', { width: 46, height: 26, viewBox: '-2 -2 50 30', 'aria-hidden': 'true' });
+      const n = { kind, ...extra };
+      const g = el('g', { class: `node k-${look(n)}` }, sw);
+      drawShape(kind, 46, 26, g);
+      return sw;
+    };
+    const line = (cls, label) => {
+      const sw = el('svg', { width: 46, height: 26, viewBox: '0 0 46 26', 'aria-hidden': 'true' });
+      const g = el('g', { class: `edge ${cls}` }, sw);
+      el('path', { d: 'M2,13 H40', 'marker-end': `url(#${cls === 'flow' ? 'arrow' : cls === 'call' ? 'arrow-call' : 'arrow-data'})` }, g);
+      return h('div', { className: 'item' }, sw, h('span', { textContent: label }));
+    };
+    const markItem = () => {
+      if (!PROBLEMS.length) return;
+      const sw = el('svg', { width: 64, height: 26, viewBox: '0 0 64 26', 'aria-hidden': 'true' });
+      SEVERITIES.forEach((s, i) => drawMark(sw, [{ severity: s }], 11 + i * 21, 13));
+      items.append(h('div', { className: 'item' }, sw, h('span', { textContent: 'Problems on a block or unit: error, warning, info (click for details; Problems lists them all)' })));
+    };
+    if (kind === 'map') {
+      for (const [k, name] of Object.entries(UNIT_LOOK)) {
+        const sw = el('svg', { width: 46, height: 26, viewBox: '-2 -2 50 30', 'aria-hidden': 'true' });
+        drawUnitShape(46, 26, el('g', { class: `node unit u-${name}` }, sw));
+        items.append(h('div', { className: 'item' }, sw, h('span', { textContent: KIND_NAMES[k] })));
+      }
+      items.append(line('call', 'Calls or runs: agent, skill, runs (a script), stage (a function); ×N in parallel'));
+      items.append(line('reads', 'File one unit writes and another reads'));
+      markItem();
+      items.append(h('div', { className: 'item note', textContent: 'Click a card, or the title of an open chart, to open its flowchart. Dashed frame: a plugin. Expand charts draws every flowchart inside its box, each call arrow leaving its block for the Start of the chart it calls.' }));
+      return;
+    }
+    for (const [kind, extra, name] of [
+      ['start', {}, 'Start / End'], ['io', {}, 'Input / output'], ['process', {}, 'Step'], ['process', { user: true }, 'Waits for the user'],
+      ['decision', {}, 'Yes/no decision'], ['subprocess', {}, 'Sub-process: an AI agent, skill or command it calls (click to open; rows open each branch)'], ['storage', {}, 'File'],
+    ]) items.append(h('div', { className: 'item' }, swatch(kind, extra), h('span', { textContent: name })));
+    items.append(line('flow', 'Order of steps'));
+    items.append(line('reads', 'File read (left) or written (right)'));
+    markItem();
+    items.append(h('div', { className: 'item note', textContent: layer === 'overview'
+      ? `Overview: the same work in a few steps. Click a step to see the detailed blocks it stands for; › opens the chart a sub-process calls.${PROBLEMS.length ? ' A problem mark on a step counts the problems of the detailed blocks behind it.' : ''}`
+      : 'Arrows enter a block at the top or left and leave at the bottom or right. › opens a chart; "16 rules ▸" opens the table. Red outline: referenced but not found.' }));
+  }
+
+  function renderIndex(view) {
+    indexBox.replaceChildren();
+    if (MAP && view.id === MAP.parent) {
+      const card = h('button', { className: 'card', type: 'button' },
+        h('strong', { textContent: MAP.title }),
+        h('span', { className: 'kind', textContent: `Map · ${count(MAP.units.length, 'flowchart')} · ${count(callPairs(MAP.calls), 'call')}` }),
+        h('p', { textContent: 'Every skill, command, agent and script on one chart: what calls what, and the files they hand to each other. Expand charts to see every flowchart at once.' }));
+      card.dataset.search = 'whole system map overview';
+      card.addEventListener('click', () => go(MAP.id, { call: true }));
+      indexBox.append(h('h2', { textContent: 'Whole system' }), h('div', { className: 'cards' }, card));
+    }
+    if (PROBLEMS.length && view.id === model.rootId) {
+      const card = h('button', { className: 'card', type: 'button' },
+        h('strong', { textContent: 'Problems' }),
+        h('span', { className: 'kind', textContent: `${count(PROBLEMS.length, 'problem')} · ${sevSummary(PROBLEMS)}` }),
+        h('p', { textContent: 'What schem-it found broken or unclear: references to nothing, unhandled outcomes, files nothing writes or reads, steps the allowed tools do not cover. Each opens its unit and block.' }));
+      card.dataset.search = 'problems errors warnings';
+      card.addEventListener('click', () => go(PROBLEMS_ID, { call: true }));
+      indexBox.append(h('h2', { textContent: 'Problems' }), h('div', { className: 'cards' }, card));
+    }
+    for (const g of view.groups) {
+      indexBox.append(h('h2', { textContent: g.title }));
+      const grid = h('div', { className: 'cards' });
+      for (const id of g.items) {
+        const n = byId.get(id);
+        const target = viewById.get(id);
+        // A plugin card counts the problems of everything in it.
+        const probs = n.kind === 'plugin' ? PROBLEMS.filter((p) => { for (let x = byId.get(p.unit); x; x = byId.get(x.parent)) if (x.id === id) return true; return false; }) : probsByUnit.get(id) ?? [];
+        const kids = [
+          h('strong', { textContent: n.label }),
+          h('span', { className: 'kind', textContent: kindLine(n) }),
+          n.description ? h('p', { textContent: n.description }) : null,
+          probs.length ? sevPill(probs, `${count(probs.length, 'problem')}: ${sevSummary(probs)}`) : null,
+        ];
+        const card = target ? h('button', { className: 'card', type: 'button' }, ...kids) : h('div', { className: 'card plain' }, ...kids);
+        card.dataset.search = `${n.label} ${n.description ?? ''}`.toLowerCase();
+        if (target) card.addEventListener('click', () => go(id));
+        grid.append(card);
+      }
+      indexBox.append(grid);
+    }
+  }
+  // The Problems page: every problem, grouped by unit, worst first; a row opens its unit at the block concerned.
+  const problemFilter = new Set(SEVERITIES);
+  const srcText = (s) => `${s.file}:${s.lines[0]}${s.lines[1] !== s.lines[0] ? `-${s.lines[1]}` : ''}`;
+  const byWho = (p) => (p.by === 'analyst' ? 'noted by the analyst' : 'found by the script');
+  function renderProblems() {
+    indexBox.replaceChildren();
+    indexBox.append(h('h2', { textContent: `Problems · ${count(PROBLEMS.length, 'problem')}` }),
+      h('p', { className: 'lead', textContent: 'Found by the script (references and calls that lead nowhere, files nothing writes or reads, commands the allowed tools do not cover) or noted by the analyst where the text leaves a reader unable to tell what happens. A row opens its unit at the block concerned; Back returns here.' }));
+    const filters = h('div', { className: 'filters' });
+    filters.setAttribute('role', 'group');
+    filters.setAttribute('aria-label', 'Show severities');
+    for (const s of SEVERITIES) {
+      const k = PROBLEMS.filter((p) => p.severity === s).length;
+      if (!k) continue;
+      const b = h('button', { type: 'button' }, h('span', { className: `sev s-${s}`, textContent: sevCount(s, k) }));
+      b.setAttribute('aria-pressed', String(problemFilter.has(s)));
+      b.addEventListener('click', () => {
+        if (problemFilter.has(s)) problemFilter.delete(s); else problemFilter.add(s);
+        b.setAttribute('aria-pressed', String(problemFilter.has(s)));
+        applySearch();
+      });
+      filters.append(b);
+    }
+    indexBox.append(filters);
+    for (const u of [...new Set(PROBLEMS.map((p) => p.unit))]) {
+      const n = byId.get(u);
+      const group = h('section', { className: 'pgroup' }, h('h2', { textContent: `${n?.label ?? u}${n ? ` · ${KIND_NAMES[n.kind] ?? n.kind}` : ''}` }));
+      const rows = h('div', { className: 'prows' });
+      for (const p of probsByUnit.get(u)) rows.append(problemRow(p));
+      group.append(rows);
+      indexBox.append(group);
+    }
+  }
+  function problemRow(p) {
+    const block = p.node && byId.get(p.node);
+    const where = h('span', { className: 'where', textContent: `${block ? `Block: ${labelOf(block)}` : 'The whole unit'} · ${byWho(p)}` });
+    if (p.source) where.append(' · ', h('code', { textContent: srcText(p.source) }));
+    const row = h('button', { className: 'prow', type: 'button' }, h('span', { className: `sev s-${p.severity}`, textContent: p.title ?? p.kind }), h('span', { textContent: p.message }), where);
+    row.dataset.search = `${p.title ?? ''} ${p.message} ${block?.label ?? ''} ${byId.get(p.unit)?.label ?? ''}`.toLowerCase();
+    row.dataset.sev = p.severity;
+    row.addEventListener('click', () => openProblem(p));
+    return row;
+  }
+  // At the overview level the step that stands for the block is selected; a block no step stands for opens Detailed.
+  async function openProblem(p) {
+    if (!viewById.has(p.unit)) return;
+    await go(p.unit, { call: true });
+    const n = p.node && byId.get(p.node);
+    if (!n) return;
+    const overview = shownOf(viewById.get(p.unit)).layer === 'overview';
+    if (overview && coverOf.has(n.id)) { select(coverOf.get(n.id), true); return; }
+    if (overview) state.layer = 'detail';
+    const filesOff = n.kind === 'storage' && !state.showFiles;
+    if (filesOff) { state.showFiles = true; document.getElementById('t-files').checked = true; }
+    if (overview || filesOff) await draw(true);
+    select(n.id, true);
+  }
+  // Problems in the side panel: each with what it is, who found it and the lines it cites.
+  function problemList(list, open) {
+    const ul = h('ul', { className: 'problems' });
+    for (const p of list) {
+      const li = h('li', {}, h('span', { className: `sev s-${p.severity}`, textContent: p.title ?? p.kind }), p.message);
+      const block = p.node && byId.get(p.node);
+      if (open && block) li.append(' ', link(`Block: ${labelOf(block)}`, () => open(p)));
+      li.append(h('div', { className: 'kind', textContent: byWho(p).replace(/^./, (c) => c.toUpperCase()) }));
+      if (p.source) {
+        li.append(h('code', { textContent: srcText(p.source) }));
+        if (p.source.quote) li.append(h('blockquote', { textContent: p.source.quote }));
+      }
+      ul.append(li);
+    }
+    return ul;
+  }
+  function renderProblemsPanel() {
+    panel.append(h('h2', { textContent: 'Problems' }), h('div', { className: 'kind', textContent: sevSummary(PROBLEMS) }));
+    const dl = h('dl');
+    const row = (k, v) => dl.append(h('dt', { textContent: k }), h('dd', { textContent: v }));
+    row('Error', 'Something the chart depends on is not there: a callee, a file, or the unit\'s own analysis.');
+    row('Warning', 'Likely broken or incomplete: a reference to nothing, an outcome the text never handles, a file read that nothing produces.');
+    row('Info', 'Worth a look, often harmless: a file nothing reads, a command that asks for permission, a unit without an overview.');
+    row('Found by', 'The script checks references, calls, files and allowed tools; the analyst notes where the text itself is unclear, citing the lines.');
+    panel.append(dl);
+  }
+
+  function openDetail(n) {
+    const d = n.table ?? n.list;
+    if (!d) return;
+    document.getElementById('ov-title').textContent = labelOf(n);
+    const [a, b] = d.source.lines;
+    document.getElementById('ov-src').textContent = `${d.source.file}:${a}${b !== a ? `-${b}` : ''}`;
+    const body = document.getElementById('ov-body');
+    body.replaceChildren();
+    if (n.table) {
+      const tb = h('tbody');
+      for (const r of n.table.rows) tb.append(h('tr', {}, ...r.map((c) => h('td', { textContent: c }))));
+      body.append(h('table', {}, h('thead', {}, h('tr', {}, ...n.table.columns.map((c) => h('th', { textContent: c })))), tb));
+    } else {
+      const ul = h('ul');
+      for (const it of n.list.items) { const li = h('li', { textContent: it.text }); li.style.marginLeft = `${it.depth * 18}px`; ul.append(li); }
+      body.append(ul);
+    }
+    overlay.hidden = false;
+    backBtn.hidden = false;
+    select(n.of ?? n.id);
+  }
+  function closeDetail() {
+    overlay.hidden = true;
+    backBtn.hidden = !state.trail.length;
+  }
+
+
+  function renderMapPanel(view) {
+    const label = (id) => byId.get(id)?.label ?? id;
+    panel.append(h('h2', { textContent: view.title }), h('div', { className: 'kind', textContent: `${count(view.units.length, 'flowchart')} · ${count(callPairs(view.calls), 'call')} · ${count(view.files.length, 'shared file')}` }));
+    const dl = h('dl');
+    const row = (k, v) => dl.append(h('dt', { textContent: k }), typeof v === 'string' ? h('dd', { textContent: v }) : h('dd', {}, v));
+    const list = (items) => { const ul = h('ul'); for (const it of items) ul.append(h('li', {}, ...[].concat(it))); return ul; };
+    row('How to read', 'Each box is a unit with a flowchart of its own; an arrow runs from a unit to the one it calls or runs. Click a box to open its flowchart, or turn on Expand charts to see them all at once.');
+    const seen = new Map();
+    for (const c of view.calls) {
+      const key = `${c.from}>${c.to}`;
+      if (!seen.has(key)) seen.set(key, { ...c, kinds: new Set() });
+      seen.get(key).kinds.add(c.kind);
+    }
+    if (seen.size) row('Calls', list([...seen.values()].map((c) => [`${label(c.from)} → `, link(label(c.to), () => go(c.to, { call: true })), ` (${[...c.kinds].join(', ')})`])));
+    if (view.files.length) {
+      row('Shared files', list(view.files.map((f) => [link(label(f.id), () => select(f.id, true)),
+        `: written by ${f.writers.map(label).join(', ') || 'none here'}; read by ${f.readers.map(label).join(', ') || 'none here'}`])));
+    }
+    if (view.left) row('Not shown', `${count(view.left, 'unit')} not analysed in this run (excluded by --only) and called by nothing drawn here.`);
+    if (PROBLEMS.length) row('Problems', h('span', {}, `${sevSummary(PROBLEMS)}; a mark on a box counts its unit's problems. `, link('Open the list', () => go(PROBLEMS_ID, { call: true }))));
+    panel.append(dl);
+  }
+
+  // A skill's, command's or agent's frontmatter description is what decides when it runs.
+  const TRIGGER_KINDS = new Set(['skill', 'command', 'agent-def']);
+  function renderPanel(n) {
+    panel.replaceChildren();
+    if (!n) {
+      const v = viewById.get(state.view);
+      if (v?.kind === 'map') renderMapPanel(v);
+      if (v?.kind === 'problems') renderProblemsPanel();
+      return;
+    }
+    const origin = n.layer === 'overview' ? ` · overview of ${count(n.covers.length, 'detailed block')}` : n.origin === 'static' ? ' · found by the script' : n.origin === 'inferred' ? ' · read from the text' : '';
+    panel.append(h('h2', { textContent: labelOf(n) }), h('div', { className: 'kind', textContent: `${KIND_NAMES[n.kind] ?? n.kind}${origin}${n.missing ? ' · not found' : ''}` }));
+    const dl = h('dl');
+    const row = (k, v) => {
+      if (v == null || v === '') return;
+      dl.append(h('dt', { textContent: k }), typeof v === 'string' ? h('dd', { textContent: v }) : h('dd', {}, v));
+    };
+    const list = (items) => {
+      const ul = h('ul');
+      for (const it of items) ul.append(h('li', {}, ...[].concat(it)));
+      return ul;
+    };
+    row(TRIGGER_KINDS.has(n.kind) ? 'When it runs' : 'Role', n.role ?? n.description);
+    const owner = n.kind === 'start' && byId.get(n.parent);
+    if (owner && TRIGGER_KINDS.has(owner.kind)) row('When it runs', owner.description);
+    const probs = viewById.has(n.id) ? probsByUnit.get(n.id) ?? [] : problemsOf(n);
+    if (probs.length) {
+      const open = viewById.has(n.id) ? (p) => goTo(p.node) : n.layer === 'overview' ? (p) => showCovered(n, p.node) : null;
+      row(`Problems (${sevSummary(probs)})`, problemList(probs, open));
+    }
+    if (n.layer === 'overview') row('Covers', list(n.covers.map((c) => link(labelOf(byId.get(c)), () => showCovered(n, c)))));
+    if (coverOf.has(n.id)) row('Overview step', link(byId.get(coverOf.get(n.id)).label, () => toOverview(coverOf.get(n.id))));
+    if (n.kind === 'io') row('Direction', n.direction === 'out' ? 'Output: handed back to the caller' : 'Input: given to the unit');
+    if (n.user) row('Waits for', 'The user');
+    if (n.command) row('Command', h('span', { className: 'cmd', textContent: n.command }));
+    if (n.loads?.length) row('Loads', list(n.loads.map((p) => `${p}${n.loadsMissing?.includes(p) ? ' (not found)' : ''}`)));
+    if (n.kind === 'subprocess') {
+      const callee = n.calls === 'function' && n.opens?.[0] ? byId.get(n.opens[0])?.label : null;
+      row('Calls', `${n.calls} ${callee ?? n.target}${n.parallel ? (n.count ? `, ×${n.count} in parallel` : ', several in parallel') : ''}`);
+      const open = (id) => link(byId.get(id)?.label ?? id, () => go(id, { call: true }));
+      if (n.branches?.length) {
+        row('Branches', list(n.branches.map((b) => [b.opens?.[0] && viewById.has(b.opens[0]) ? open(b.opens[0]) : b.label, b.role ? ` — ${b.role}` : ''])));
+        if (n.runner && viewById.has(n.runner)) row('Runner', open(n.runner));
+      } else {
+        if (n.targets?.length) row('Targets', list(n.targets));
+        const opens = opensOf(n);
+        if (opens.length === 1) row('Flowchart', open(opens[0]));
+        else if (opens.length) row('Flowcharts', list(opens.map(open)));
+        else row('Flowchart', n.unresolved ? 'None: the text does not name the agent' : n.outOfScope ? 'None: outside the analysed folder or built in' : n.missing ? 'None: not found' : 'None: not analysed in this run');
+      }
+    }
+    if (n.kind === 'subprocess' && n.script && viewById.has(n.script)) row('Script command', link(byId.get(n.script)?.label ?? n.script, () => go(n.script, { call: true })));
+    if (n.kind === 'process' && opensOf(n).length) row('Flowchart', link(byId.get(opensOf(n)[0])?.label ?? opensOf(n)[0], () => go(opensOf(n)[0], { call: true })));
+    if (n.table) row('Table', link(`${n.table.rows.length} rows: open`, () => openDetail(n)));
+    if (n.list) row('List', link(`${n.list.items.length} items: open`, () => openDetail(n)));
+    if (n.kind === 'storage') {
+      row('Path', n.path);
+      row('Holds', n.holds);
+      if (n.usage?.length) row('Used by', list(n.usage.map((u) => [link(byId.get(u.unit)?.label ?? u.unit, () => goTo(u.node)), ` ${u.kind}${u.label ? `: ${u.label}` : ''}`])));
+    }
+    if (n.fields?.length) {
+      const ul = h('ul', { className: 'fields' });
+      for (const f of n.fields) {
+        const li = h('li', {}, h('code', { textContent: f.name }), `${f.type ? ` ${f.type}` : ''}${f.required ? ' · required' : ''}${f.values ? ` · ${f.values.join(' | ')}` : ''}${f.holds ? ` — ${f.holds}` : ''}`);
+        li.style.marginLeft = `${f.depth * 14}px`;
+        ul.append(li);
+      }
+      row(n.schemaFile ? `Fields (${n.schemaFile})` : 'Fields', ul);
+    }
+    if (n.callers?.length) row('Run by', list(n.callers.map((c) => link(`${byId.get(byId.get(c.node)?.parent)?.label ?? c.unit}: ${byId.get(c.node)?.label ?? c.node}`, () => goTo(c.node)))));
+    row('Tools', n.tools);
+    if (n.kind === 'agent-prompt') {
+      row('File', n.file);
+      if (n.refs?.length) row('Handed over at', list(n.refs.map((r) => h('code', { textContent: `${r.file}:${r.lines[0]}` }))));
+    }
+    const prompts = views.filter((v) => v.parent === n.id && v.kind === 'agent-prompt');
+    if (prompts.length) row('Agent prompts', list(prompts.map((v) => link(v.title, () => go(v.id, { call: true })))));
+    if (n.analysis && n.analysis !== 'ok') row('Analysis', n.analysis);
+    if (n.source) {
+      const [a, b] = n.source.lines;
+      const box = h('div', {}, h('code', { textContent: `${n.source.file}:${a}${b !== a ? `-${b}` : ''}` }));
+      if (n.source.quote) box.append(h('blockquote', { textContent: n.source.quote }));
+      row('Source', box);
+    }
+    const view = viewById.get(state.view);
+    if (view && view.kind !== 'index' && view.kind !== 'map') {
+      const edges = n.layer === 'overview' ? view.overview.edges : view.edges;
+      const into = edges.filter((e) => e.kind === 'flow' && e.to === n.id);
+      const from = edges.filter((e) => e.kind === 'flow' && e.from === n.id);
+      if (into.length) row('Comes from', list(into.map((e) => [link(labelOf(byId.get(e.from)), () => select(e.from, true)), e.label ? ` (${e.label})` : ''])));
+      if (from.length) row('Goes to', list(from.map((e) => [e.label ? `${e.label}: ` : '', link(labelOf(byId.get(e.to)), () => select(e.to, true))])));
+    }
+    panel.append(dl);
+  }
+
+  function applySearch() {
+    const q = state.search.trim().toLowerCase();
+    const focus = state.focus ? new Set(byId.get(state.focus)?.covers ?? []) : null;
+    indexBox.querySelectorAll('.card').forEach((c) => c.classList.toggle('hide', Boolean(q) && !c.dataset.search.includes(q)));
+    indexBox.querySelectorAll('.prow').forEach((r) => r.classList.toggle('hide', (Boolean(q) && !r.dataset.search.includes(q)) || !problemFilter.has(r.dataset.sev)));
+    indexBox.querySelectorAll('.pgroup').forEach((g) => g.classList.toggle('hide', !g.querySelector('.prow:not(.hide)')));
+    vp.querySelectorAll('.node').forEach((g) => {
+      const n = byId.get(g.dataset.id);
+      const extra = [...(n?.branches ?? []).map((b) => `${b.label} ${b.role ?? ''}`), ...(n?.table?.rows.flat() ?? []), ...(n?.list?.items.map((i) => i.text) ?? []), ...(n?.fields ?? []).map((f) => `${f.name} ${f.holds ?? ''}`)].join(' ');
+      const text = `${n?.label ?? ''} ${n?.role ?? n?.description ?? ''} ${n?.path ?? ''} ${n?.holds ?? ''} ${n?.command ?? ''} ${extra}`.toLowerCase();
+      const covered = Boolean(focus?.has(g.dataset.id));
+      g.classList.toggle('covered', covered);
+      g.classList.toggle('dim', (Boolean(q) && !text.includes(q)) || (Boolean(focus) && !covered));
+    });
+    vp.querySelectorAll('.edge').forEach((g) => g.classList.toggle('dim', Boolean(q) || Boolean(focus)));
+  }
+
+  function select(id, centre) {
+    state.selected = id;
+    vp.querySelectorAll('.node').forEach((g) => g.classList.toggle('selected', g.dataset.id === id));
+    renderPanel(byId.get(id) ?? byId.get(state.view));
+    if (centre) centreOn(id);
+  }
+
+  function onNodeClick(n) {
+    if (suppressClick) return;
+    const target = drillOf(n);
+    if (target) { go(target, { call: true }); return; }
+    if (n.layer === 'overview') { showCovered(n); return; }
+    select(n.of ?? n.id);
+  }
+
+  // An overview step opens the detailed chart with the blocks it stands for highlighted; `pick` selects one of them.
+  async function showCovered(n, pick) {
+    state.layer = 'detail';
+    state.focus = n.id;
+    state.userMoved = false;
+    await draw(true);
+    select(pick ?? n.id);
+    centreOn(pick ?? n.covers.find((c) => byId.get(c)?.kind !== 'storage') ?? n.covers[0]);
+  }
+
+  async function toOverview(id) {
+    state.layer = 'overview';
+    state.focus = null;
+    state.userMoved = false;
+    await draw(true);
+    if (id) select(id);
+  }
+
+  function setLayer(layer) {
+    if (state.layer === layer && !state.focus) return;
+    state.layer = layer;
+    state.focus = null;
+    state.selected = null;
+    state.userMoved = false;
+    renderPanel(byId.get(state.view));
+    draw(true);
+  }
+
+
+  async function draw(refit = true) {
+    const token = ++drawToken;
+    const view = viewById.get(state.view);
+    renderCrumbs(view);
+    renderBanner(view);
+    backBtn.hidden = !state.trail.length && overlay.hidden;
+    // The index and the Problems page are pages of cards and rows, not charts.
+    const isIndex = view.kind === 'index' || view.kind === 'problems';
+    const isMap = view.kind === 'map';
+    document.getElementById('to-problems').hidden = !PROBLEMS.length || view.kind === 'problems';
+    const shown = isIndex || isMap ? view : shownOf(view);
+    // On the map the switch decides what Expand charts draws.
+    document.getElementById('layers').hidden = !(view.overview || (isMap && HAS_OVERVIEWS));
+    const level = isMap ? state.layer : shown.layer ?? 'detail';
+    document.getElementById('l-overview').setAttribute('aria-pressed', String(level === 'overview'));
+    document.getElementById('l-detail').setAttribute('aria-pressed', String(level !== 'overview'));
+    document.getElementById('to-map').hidden = !MAP || isMap;
+    document.getElementById('l-expand').hidden = !isMap;
+    svg.classList.toggle('expanded', isMap && state.expand);
+    indexBox.style.display = isIndex ? 'block' : 'none';
+    svg.style.display = isIndex ? 'none' : 'block';
+    legendBox.hidden = isIndex;
+    if (!isIndex) renderLegend(view.kind, shown.layer);
+    vp.replaceChildren();
+    state.layout = null;
+    if (isIndex) { if (view.kind === 'problems') renderProblems(); else renderIndex(view); applySearch(); return; }
+    if (isMap) {
+      // Opening every chart takes a few seconds the first time on a big run.
+      if (state.expand) {
+        state.tx = { x: 0, y: 0, k: 1 };
+        applyTx();
+        el('text', { x: 20, y: 40, fill: 'currentColor' }, vp).textContent = 'Laying out every flowchart…';
+      }
+      const L = await mapLayoutOf(view);
+      if (token !== drawToken) return;
+      vp.replaceChildren();
+      state.layout = L;
+      for (const f of L.frames) drawFrame(f, vp);
+      for (const e of L.edges) drawEdge(e, vp);
+      for (const b of L.blocks) (b.kind === 'unit' ? drawUnit : drawBlock)(b, vp);
+      applySearch();
+      if (refit) fit();
+      return;
+    }
+    if (!view.nodes.length) {
+      el('text', { x: 20, y: 50, fill: 'currentColor' }, vp).textContent = 'Nothing to show: this unit was not analysed.';
+      return;
+    }
+    const L = await layoutOf(shown);
+    if (token !== drawToken) return;
+    state.layout = L;
+    for (const e of L.edges) drawEdge(e, vp);
+    for (const b of L.blocks) drawBlock(b, vp);
+    applySearch();
+    if (refit) fit();
+  }
+
+  function go(id, { call = false, back = false } = {}) {
+    if (!viewById.has(id)) return;
+    overlay.hidden = true;
+    if (call && state.view && state.view !== id) state.trail.push(state.view);
+    else if (!back) state.trail = [];
+    // A fresh jump (index, breadcrumb, link) opens the overview; following a call keeps the chosen level.
+    if (!call && !back) state.layer = 'overview';
+    state.view = id;
+    state.selected = null;
+    state.focus = null;
+    state.userMoved = false;
+    state.whole = false;
+    const hash = `#${encodeURIComponent(id)}`;
+    if (location.hash !== hash) location.hash = hash;
+    renderPanel(byId.get(id));
+    return draw(true);
+  }
+
+  async function goTo(id) {
+    const v = views.find((x) => x.kind !== 'index' && x.nodes.includes(id));
+    if (!v) return;
+    // A step in the chart that is already open keeps the call trail; another unit's chart is a jump.
+    if (v.id !== state.view) await go(v.id);
+    // A detailed block is not drawn in the overview.
+    if (shownOf(v).layer === 'overview') { state.layer = 'detail'; await draw(true); }
+    select(id, true);
+  }
+
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    const my = e.clientY - r.top;
+    const k = Math.min(3, Math.max(0.02, state.tx.k * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+    state.tx.x = mx - ((mx - state.tx.x) * k) / state.tx.k;
+    state.tx.y = my - ((my - state.tx.y) * k) / state.tx.k;
+    state.tx.k = k;
+    state.userMoved = true;
+    applyTx();
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, tx: { ...state.tx }, moved: false };
+    // A pan that ends over the panel or the legend must not select their text.
+    document.body.classList.add('panning');
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 3) { drag.moved = true; window.getSelection()?.removeAllRanges(); }
+    if (!drag.moved) return;
+    state.tx.x = drag.tx.x + dx;
+    state.tx.y = drag.tx.y + dy;
+    state.userMoved = true;
+    applyTx();
+  });
+  window.addEventListener('pointerup', () => {
+    if (drag?.moved) { suppressClick = true; setTimeout(() => { suppressClick = false; }, 0); }
+    drag = null;
+    document.body.classList.remove('panning');
+  });
+  svg.addEventListener('click', () => {
+    if (suppressClick) return;
+    if (state.focus) { state.focus = null; renderBanner(viewById.get(state.view)); applySearch(); }
+    select(null);
+  });
+  document.getElementById('l-overview').addEventListener('click', () => setLayer('overview'));
+  document.getElementById('l-detail').addEventListener('click', () => setLayer('detail'));
+  document.getElementById('fit').addEventListener('click', () => { state.userMoved = false; state.whole = true; fit(); });
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (!state.userMoved) fit(); }, 150);
+  });
+  backBtn.addEventListener('click', () => {
+    if (!overlay.hidden) { closeDetail(); return; }
+    const prev = state.trail.pop();
+    if (prev) go(prev, { back: true });
+  });
+  document.getElementById('ov-close').addEventListener('click', closeDetail);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeDetail(); });
+  document.getElementById('search').addEventListener('input', (e) => { state.search = e.target.value; applySearch(); });
+  document.getElementById('t-files').addEventListener('change', (e) => { state.showFiles = e.target.checked; draw(false); });
+  document.getElementById('t-expand').addEventListener('change', (e) => { state.expand = e.target.checked; state.userMoved = false; draw(true); });
+  document.getElementById('to-map').addEventListener('click', () => go(MAP.id, { call: true }));
+  const toProblems = document.getElementById('to-problems');
+  if (PROBLEMS.length) {
+    toProblems.append(sevPill(PROBLEMS, String(PROBLEMS.length)));
+    toProblems.setAttribute('aria-label', `Problems: ${sevSummary(PROBLEMS)}`);
+  }
+  toProblems.addEventListener('click', () => go(PROBLEMS_ID, { call: true }));
+  document.getElementById('legend-toggle').addEventListener('click', (ev) => {
+    const closed = legendBox.classList.toggle('closed');
+    ev.currentTarget.textContent = closed ? 'Show' : 'Hide';
+    ev.currentTarget.setAttribute('aria-expanded', String(!closed));
+    if (!state.userMoved) requestAnimationFrame(fit);
+  });
+  window.addEventListener('hashchange', () => {
+    const id = hashId();
+    if (viewById.has(id) && id !== state.view) go(id);
+  });
+
+  const start = hashId();
+  // An index page with a single card (a marketplace of one plugin) is a click with nothing to choose: open the card.
+  let first = viewById.has(start) ? start : model.rootId;
+  for (let v = viewById.get(first); !start && v?.kind === 'index'; v = viewById.get(first)) {
+    const items = v.groups.flatMap((g) => g.items);
+    if (items.length !== 1 || !viewById.has(items[0])) break;
+    first = items[0];
+  }
+  go(first);
+})();
+</script>
+</body>
+</html>

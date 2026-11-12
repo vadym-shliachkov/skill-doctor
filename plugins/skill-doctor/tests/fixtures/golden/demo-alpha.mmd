@@ -1,0 +1,16 @@
+flowchart TD
+  n0(["Start"])
+  n1[["Check each file ×N"]]
+  n2[["Write the report"]]
+  n3(["End"])
+  n0 --> n1
+  n1 --> n2
+  n2 --> n3
+  linkStyle default stroke:#1e3a6e,stroke-width:1.5px
+  classDef k_start fill:#e3f5ea,stroke:#3e9e6b,color:#0f2247
+  classDef k_subprocess fill:#f0e7fc,stroke:#8c6bc2,color:#0f2247
+  classDef k_end fill:#e3f5ea,stroke:#3e9e6b,color:#0f2247
+  class n0 k_start
+  class n1 k_subprocess
+  class n2 k_subprocess
+  class n3 k_end
