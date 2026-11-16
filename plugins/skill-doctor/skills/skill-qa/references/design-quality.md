@@ -69,7 +69,7 @@ Judge the **rendered** output (screenshots, page images), never the source alone
    Then do the same at the scroll level for long web pages and across slides.
 4. **Systematic pass.** Go through the rubric below, one dimension at a time, across every width or page.
 5. **Probe numbers.** Use `design-probe.js` (HTML) or `pdf-probe.mjs` (PDF) output to confirm or refute what you see: contrast failures, smallest text, line lengths, overflow, target sizes, heading outline, number of fonts and colours, spacing values.
-6. **Interact.** For HTML, use the main controls, tab through with the keyboard, resize, toggle dark mode, and try an empty or long state if the fixtures allow it. Do what real hands do: drag, use the mouse wheel and trackpad, pinch, double-click, select and copy text, use the back button. Interaction bugs, such as a drag that selects the whole page or a scroll that zooms, never show up in a screenshot.
+6. **Interact.** For HTML, use the main controls (but never submit a form, press Enter in a form field, or open a `mailto:`, `tel:` or `sms:` link; type into fields to check them, and read a form's markup to see where it would send), tab through with the keyboard, resize, toggle dark mode, and try an empty or long state if the fixtures allow it. Do what real hands do: drag, use the mouse wheel and trackpad, pinch, double-click, select and copy text, use the back button. Interaction bugs, such as a drag that selects the whole page or a scroll that zooms, never show up in a screenshot.
 7. **Compare with the reader's task.** Could the reader find the answer they came for in under about 10 seconds? Then check what the cold reader (SKILL.md step 7) stumbled on: each of its confusions is a candidate design finding.
 
 ## 3. Rubric (score 1–5)

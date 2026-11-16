@@ -48,6 +48,7 @@ Use this structure:
 
 ## Side effects of this QA
 Anything written, changed or contacted outside the run folder, by the runs or by you, with full paths. If nothing, write "None: everything stayed in `<OUT>`."
+Also state, in one line, that no form was submitted and no real person or organisation was contacted. If either happened, it is a Critical finding: say what, to whom and in which run. List the submissions and contacts the runs stopped short of ("would have done"), so the author can see which steps were not tested live.
 
 ## Main purpose
 For each main-purpose case: the request, what happened, the verdict, and *whether the reader could do what they came to do*. With a baseline, say what the skill added.
