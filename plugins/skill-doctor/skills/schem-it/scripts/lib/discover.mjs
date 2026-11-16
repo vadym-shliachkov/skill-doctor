@@ -1,9 +1,10 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { makeResolver } from './inventory.mjs';
 import { slug } from './paths.mjs';
 import { readText } from './io.mjs';
 import { citeLine } from './scan.mjs';
-import { resolveModule, definesFunction, isEntryScript, listScriptFiles, langOf } from './codescan.mjs';
+import { resolveModule, definesFunction, declaresName, isEntryScript, listScriptFiles, langOf } from './codescan.mjs';
 
 // The first analysis round is 1; discover adds units for the rounds after it, up to this one.
 export const MAX_ROUND = 5;
@@ -75,12 +76,21 @@ export function scriptResolver(scanRes, unit) {
 }
 
 // "scripts/run_eval.py#run_eval" → { file, symbol, defined }; file is null when the path names nothing in the folder.
-export function parseStage(target, resolve, root) {
+// A path copied from the import that brings the function in (../lib/x.mjs) is relative to `fromFile`, the file the block cites.
+export function parseStage(target, resolve, root, fromFile) {
   const m = /^\s*([^#\s]+)#([A-Za-z_$][\w$]*)\s*$/.exec(String(target ?? ''));
   if (!m) return null;
-  const file = resolveModule(m[1], resolve);
+  const beside = (p) => {
+    const r = path.posix.normalize(path.posix.join(path.posix.dirname(String(fromFile).replace(/\\/g, '/')), p));
+    const abs = path.join(root, r);
+    return !r.startsWith('../') && r !== '..' && fs.existsSync(abs) && fs.statSync(abs).isFile() ? r : null;
+  };
+  const file = (fromFile && /^\.\.?\//.test(m[1]) ? resolveModule(m[1], beside) : null) ?? resolveModule(m[1], resolve);
   if (!file) return { file: null, symbol: m[2], defined: false };
-  return { file, symbol: m[2], defined: definesFunction(readText(path.join(root, file)), m[2], langOf(file)) };
+  const text = readText(path.join(root, file));
+  const defined = definesFunction(text, m[2], langOf(file));
+  // A table of functions (COMMANDS[name]) is there but has no flow of its own to draw.
+  return { file, symbol: m[2], defined, ...(!defined && declaresName(text, m[2], langOf(file)) ? { value: true } : {}) };
 }
 
 // A block runs a script command with `command`, or as a call of kind "command" whose target is the command.
@@ -168,9 +178,9 @@ export function discoverUnits(scanRes, model) {
       note(scriptKey(c.file, c.subcommand), { file: c.file, subcommand: c.subcommand }, caller, n);
     }
     for (const target of stagesOf(n)) {
-      const s = parseStage(target, resolve, base.root);
+      const s = parseStage(target, resolve, base.root, n.source?.file);
       if (!s?.file) { skip(target, `${target} is not a file in the analysed folder`); continue; }
-      if (!s.defined) { skip(target, `${s.file} does not define ${s.symbol}`); continue; }
+      if (!s.defined) { skip(target, s.value ? `${s.symbol} in ${s.file} is a value, not a function, so it has no flowchart` : `${s.file} does not define ${s.symbol}`); continue; }
       note(stageKey(s.file, s.symbol), { file: s.file, symbol: s.symbol }, caller, n);
     }
   }

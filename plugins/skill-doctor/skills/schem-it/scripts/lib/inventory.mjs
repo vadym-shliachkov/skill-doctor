@@ -39,7 +39,21 @@ export function knownSkills(scanRes) {
     if (!byName.has(name)) byName.set(name, []);
     byName.get(name).push(c.id);
   }
-  return { byQualified, byName, plugins, agents, byFile, byScript, byStage, root: scanRes.root };
+  // An umbrella plugin that lists another plugin's skill or agent: <umbrella>:<name> is that same skill or agent.
+  const agentAliases = new Map();
+  for (const p of scanRes.containers.filter((c) => c.kind === 'plugin' && c.includes?.length)) {
+    const umbrella = p.id.slice(2);
+    for (const inc of p.includes) {
+      for (const u of scanRes.units.filter((x) => x.kind === 'skill' && x.dir === inc)) {
+        const key = `${umbrella}:${u.id.split('/').pop()}`;
+        if (!byQualified.has(key)) byQualified.set(key, u.skillNode);
+      }
+      for (const a of scanRes.containers.filter((x) => x.kind === 'agent-def' && x.source?.file === inc)) {
+        agentAliases.set(`${umbrella}:${a.id.split('/').pop()}`, a.id);
+      }
+    }
+  }
+  return { byQualified, byName, plugins, agents, agentAliases, byFile, byScript, byStage, root: scanRes.root };
 }
 
 export function makeResolver(root, unit) {
@@ -62,8 +76,9 @@ export function makeResolver(root, unit) {
     const clean = p.replace(/^(?:<[^>/]+>|\$\{CLAUDE_SKILL_DIR\}|\$\{CLAUDE_PLUGIN_ROOT\})\//, '').replace(/^\.\//, '');
     // A path written relative to the plugin (skills/<name>/x.md) still resolves when only the skill is analysed.
     const inSkill = /^(?:.*\/)?skills\/[^/]+\/(.+)$/.exec(clean);
-    // A bare script name (`build.py --strict`) usually means the scripts/ folder next to the skill or at the root.
-    return tryAll(clean) ?? (inSkill ? tryAll(inSkill[1]) : null) ?? (clean.includes('/') ? null : tryAll(`scripts/${clean}`));
+    // A bare name (`build.py --strict`, `style-card.md`) usually means the skill's scripts/, references/ or templates/ folder.
+    if (clean.includes('/')) return tryAll(clean) ?? (inSkill ? tryAll(inSkill[1]) : null);
+    return tryAll(clean) ?? ['scripts', 'references', 'templates'].reduce((hit, d) => hit ?? tryAll(`${d}/${clean}`), null);
   };
 }
 
@@ -128,7 +143,7 @@ export function extractFacts(text, file, ctx) {
     for (const m of line.matchAll(QUALIFIED_RE)) {
       const [, slash, plugin, name] = m;
       const key = `${plugin}:${name}`;
-      if (known.agents?.has(key) || /subagent_type\W*$/.test(line.slice(0, m.index))) continue;
+      if (known.agents?.has(key) || known.agentAliases?.has(key) || /subagent_type\W*$/.test(line.slice(0, m.index))) continue;
       const id = known.byQualified.get(key);
       if (id) addSkill(m.index, m[0], id);
       else if (known.plugins.has(plugin)) addSkill(m.index, m[0], key, { missing: true });

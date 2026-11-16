@@ -66,7 +66,11 @@ export function detect(root) {
         }
         if (!isDir(dir)) { warnings.push(`Plugin "${p.name}" source not found: ${src}`); continue; }
         skippedRemote.delete(p.name);
-        byName.set(p.name, { name: p.name, dir, description: p.description ?? null, manifestFile: f });
+        // An umbrella plugin lists skills and agents that live in other plugins' folders ("./wcag-report/skills/x"):
+        // the same skill or agent then also answers to <umbrella>:<name>. Entries outside the analysed folder are ignored.
+        const lists = [p.skills, p.agents, p.commands].flatMap((v) => (Array.isArray(v) ? v : typeof v === 'string' ? [v] : []));
+        const includes = lists.filter((v) => typeof v === 'string').map((v) => toPosix(path.resolve(dir, v))).filter((v) => isInside(root, v));
+        byName.set(p.name, { name: p.name, dir, description: p.description ?? null, manifestFile: f, ...(includes.length ? { includes } : {}) });
       }
     }
     for (const n of skippedRemote) warnings.push(`Plugin "${n}" has a non-local source; skipped`);

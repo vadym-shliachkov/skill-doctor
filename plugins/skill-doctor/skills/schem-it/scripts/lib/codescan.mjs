@@ -132,6 +132,17 @@ export function definesFunction(text, name, lang) {
   return new RegExp(re, 'm').test(text);
 }
 
+// A name bound to something other than a function (a dispatch table such as `export const COMMANDS = {}`, a class).
+export function declaresName(text, name, lang) {
+  const e = escapeRe(name);
+  const re = {
+    py: `^(?:class\\s+${e}\\b|${e}\\s*(?::[^=]+)?=)`,
+    sh: `^\\s*(?:export\\s+|readonly\\s+|declare\\s+(?:-\\w+\\s+)*)?${e}=`,
+    js: `\\b(?:const|let|var|class)\\s+${e}(?![\\w$])`,
+  }[lang];
+  return Boolean(re) && new RegExp(re, 'm').test(text);
+}
+
 export function isEntryScript(text, file) {
   if (/\.(?:sh|ps1|cmd)$/i.test(file)) return true;
   if (/^\uFEFF?#!/.test(text)) return true;

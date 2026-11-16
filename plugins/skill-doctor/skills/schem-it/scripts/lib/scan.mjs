@@ -64,6 +64,7 @@ function addPlugin(ctx, plugin, parentId) {
     label: plugin.name,
     description: plugin.description ?? str(manifest?.data.description),
     source: manifest ? citeLine(root, path.join(root, manifest.file), /"name"\s*:/) : null,
+    ...(plugin.includes?.length ? { includes: plugin.includes.map((f) => rel(root, f)) } : {}),
   });
   for (const name of listDirs(path.join(dir, 'skills'))) {
     const skillDir = path.join(dir, 'skills', name);

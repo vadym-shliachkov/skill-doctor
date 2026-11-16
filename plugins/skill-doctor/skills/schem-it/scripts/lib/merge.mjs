@@ -49,6 +49,8 @@ export function resolveAgentTarget(target, unit, known) {
   const qualified = t.includes(':');
   const [plugin, name] = qualified ? t.split(':') : [unit.plugin, t];
   if (plugin && known.agents.has(`${plugin}:${slug(name)}`)) return { id: `a:${plugin}/${slug(name)}` };
+  const alias = plugin && known.agentAliases?.get(`${plugin}:${slug(name)}`);
+  if (alias) return { id: alias };
   // An unqualified name not defined in this plugin is usually a built-in or user-level agent such as general-purpose.
   if (!qualified && /\s/.test(t)) return { unresolved: true };
   return qualified && known.plugins.has(plugin) ? { missing: true } : { outOfScope: true };
@@ -142,8 +144,9 @@ export function mergeModel(scanRes, inventory, fragments, { run, mode = 'paralle
         // A stage names file#function: its chart; missing when the file or the function is not there; otherwise
         // a real function without a chart (the round limit stopped before it).
         const resolveStage = (t) => {
-          const s = parseStage(t, runs, scanRes.root);
+          const s = parseStage(t, runs, scanRes.root, n.source?.file);
           if (!s) return { unresolved: true };
+          if (s.value) return {};
           if (!s.file || !s.defined) return { missing: true };
           const id = known.byStage.get(stageKey(s.file, s.symbol));
           return id ? { id } : {};
@@ -218,8 +221,9 @@ export function mergeModel(scanRes, inventory, fragments, { run, mode = 'paralle
         if (fields.length) node.fields = fields;
       }
       if (n.kind === 'process' && n.loads?.length) {
-        // A path with a placeholder (agents/<area>.md) names a family of files, not one that could be missing.
-        const gone = n.loads.filter((p) => !/<[^>]+>|\$\{/.test(p) && !resolve(p));
+        // A path with a placeholder (agents/<area>.md) names a family of files, not one that could be missing; text with
+        // spaces ("the file named in criterion.card") describes a path worked out at run time.
+        const gone = n.loads.filter((p) => !/<[^>]+>|\$\{|\s/.test(String(p).trim()) && !resolve(p));
         if (gone.length) node.loadsMissing = gone;
       }
       if (n.kind === 'storage') storage.push(node);

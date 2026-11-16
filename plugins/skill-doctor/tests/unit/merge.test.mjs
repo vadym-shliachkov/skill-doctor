@@ -101,6 +101,39 @@ test('resolveSkillTarget and resolveAgentTarget rules', () => {
   assert.deepEqual(resolveAgentTarget('other:x', alpha, pk), { outOfScope: true });
 });
 
+test('an umbrella plugin that lists other plugins\' skills and agents makes <umbrella>:<name> resolve to them', () => {
+  const root = copyFixture('marketplace');
+  const mf = path.join(root, '.claude-plugin/marketplace.json');
+  const m = JSON.parse(fs.readFileSync(mf, 'utf8'));
+  m.plugins.unshift({ name: 'all', source: './plugins', skills: ['./one/skills/start', './two/skills/finish'], agents: ['./two/agents/helper.md'] });
+  fs.writeFileSync(mf, JSON.stringify(m));
+  fs.mkdirSync(path.join(root, 'plugins/two/agents'));
+  fs.writeFileSync(path.join(root, 'plugins/two/agents/helper.md'), '---\nname: helper\ndescription: Helps.\n---\n\nHelp.\n');
+  fs.appendFileSync(path.join(root, 'plugins/one/skills/start/SKILL.md'), '\nWhen installed as a bundle, hand the review to all:helper.\n');
+  const s = scan(root);
+  // The umbrella's name for an agent is not a missing skill reference.
+  assert.deepEqual(inventoryAll(s)['one/start'].facts.filter((f) => f.missing && /all:/.test(f.mention ?? '')), []);
+  assert.deepEqual(s.containers.find((c) => c.id === 'p:all').includes,
+    ['plugins/one/skills/start', 'plugins/two/skills/finish', 'plugins/two/agents/helper.md']);
+  const known = knownSkills(s);
+  const unit = s.units.find((u) => u.id === 'one/start');
+  assert.deepEqual(resolveSkillTarget('all:finish', unit, known), { id: 's:two/finish' });
+  assert.deepEqual(resolveAgentTarget('all:helper', unit, known), { id: 'a:two/helper' });
+  assert.deepEqual(resolveAgentTarget('two:helper', unit, known), { id: 'a:two/helper' });
+  assert.deepEqual(resolveAgentTarget('all:nobody', unit, known), { missing: true });
+});
+
+test('a bare file name a prompt loads resolves in the skill\'s references/; a load described in words is not missing', () => {
+  const s = scan(copyFixture('marketplace'));
+  fs.mkdirSync(path.join(s.root, 'plugins/one/skills/start/references'));
+  fs.writeFileSync(path.join(s.root, 'plugins/one/skills/start/references/style-card.md'), '# Style\n');
+  const units = inventoryAll(s);
+  const f = frag('marketplace', 'one__start');
+  f.nodes.find((n) => n.id === 's1').loads = ['style-card.md', 'the file named in criterion.card', 'gone.md'];
+  const model = mergeModel(s, { units }, new Map([[f.unit, f]]), { run: 'r1' });
+  assert.deepEqual(model.nodes.find((n) => n.id === 's:one/start#s1').loadsMissing, ['gone.md']);
+});
+
 test('fallbackFragment is a start-to-end chain of scripts and calls in text order', () => {
   const s = scan(copyFixture('broken'));
   const units = inventoryAll(s);

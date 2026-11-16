@@ -209,6 +209,51 @@ test('a stage in a nested script resolves a path written from a folder above it 
   assert.notEqual(o.missing, true);
 });
 
+test('a stage that names a table of functions (COMMANDS[name]) is neither drawn nor missing', () => {
+  const root = copyFixture('pipeline');
+  const IDX = 'skills/flow/scripts/index.mjs';
+  fs.writeFileSync(path.join(root, IDX), 'export const COMMANDS = {};\nCOMMANDS.go = () => 1;\n');
+  const s = scan(root);
+  const ENTRY = 'skills/flow/scripts/entry.mjs';
+  const frags = new Map([['pipe/flow', flow('pipe/flow', SK, [
+    { id: 'go', kind: 'process', label: 'Go', role: 'r', command: 'node scripts/entry.mjs go', origin: 'inferred', source: at(SK, 7) },
+  ])]]);
+  const d1 = discoverUnits(s, mergeModel(s, { units: {} }, frags, { run: 'r1' }));
+  frags.set('pipe/flow/run-entry-go', flow('pipe/flow/run-entry-go', ENTRY, [
+    { id: 'run', kind: 'subprocess', label: 'Run the command', role: 'r', calls: 'function', target: './index.mjs#COMMANDS', origin: 'inferred', source: at(ENTRY, 1) },
+  ]));
+  const d2 = discoverUnits(d1.scan, mergeModel(d1.scan, { units: {} }, frags, { run: 'r1' }));
+  assert.deepEqual(d2.units.filter((u) => u.symbol), []);
+  assert.match(d2.skipped[0].reason, /COMMANDS in skills\/flow\/scripts\/index\.mjs is a value, not a function/);
+  const run = mergeModel(d2.scan, { units: {} }, frags, { run: 'r1' }).nodes.find((x) => x.id === 'x:pipe/flow/run-entry-go#run');
+  assert.notEqual(run.missing, true);
+  assert.equal(run.opens, undefined);
+});
+
+test('a stage path copied from an import (../lib/x.mjs#f) resolves from the file the block cites, not the script\'s folder', () => {
+  const root = copyFixture('pipeline');
+  const UTIL = 'skills/flow/scripts/lib/util.mjs';
+  const CMD = 'skills/flow/scripts/commands/cmd.mjs';
+  fs.mkdirSync(path.join(root, 'skills/flow/scripts/lib'));
+  fs.mkdirSync(path.join(root, 'skills/flow/scripts/commands'));
+  fs.writeFileSync(path.join(root, UTIL), 'export function helper() {\n  return 1;\n}\n');
+  fs.writeFileSync(path.join(root, CMD), "import { helper } from '../lib/util.mjs';\nexport function go() {\n  return helper();\n}\n");
+  const s = scan(root);
+  const frags = new Map([['pipe/flow', flow('pipe/flow', SK, [
+    { id: 'go', kind: 'process', label: 'Go', role: 'r', command: 'node scripts/entry.mjs go', origin: 'inferred', source: at(SK, 7) },
+  ])]]);
+  const d1 = discoverUnits(s, mergeModel(s, { units: {} }, frags, { run: 'r1' }));
+  frags.set('pipe/flow/run-entry-go', flow('pipe/flow/run-entry-go', 'skills/flow/scripts/entry.mjs', [
+    { id: 'h', kind: 'subprocess', label: 'Help', role: 'r', calls: 'function', target: '../lib/util.mjs#helper', origin: 'inferred', source: at(CMD, 3) },
+  ]));
+  const d2 = discoverUnits(d1.scan, mergeModel(d1.scan, { units: {} }, frags, { run: 'r1' }));
+  assert.deepEqual(d2.units.map((u) => u.id), ['pipe/flow/fn-util-helper']);
+  assert.deepEqual(d2.skipped, []);
+  const h = mergeModel(d2.scan, { units: {} }, frags, { run: 'r1' }).nodes.find((x) => x.id === 'x:pipe/flow/run-entry-go#h');
+  assert.deepEqual(h.opens, ['x:pipe/flow/fn-util-helper']);
+  assert.notEqual(h.missing, true);
+});
+
 test('a defined stage without a chart is not missing; an outside program is out of scope, not unresolved', () => {
   const s = scan(copyFixture('pipeline'));
   const d1 = discoverUnits(s, round1());
